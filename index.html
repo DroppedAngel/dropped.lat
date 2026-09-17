@@ -1,38 +1,1932 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self';">
-    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
-    <meta http-equiv="Strict-Transport-Security" content="max-age=31536000; includeSubDomains">
-    <link rel="icon" href="assets/icons/favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="assets/css/styles.css">
-    <title>ATG // Starfield</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#02040a">
+  <meta name="description" content="ATG Servarr - an interactive black hole observatory for local media services.">
+  <title>ATG Servarr</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02040a;
+      --ink: #eef7ff;
+      --muted: #8190a3;
+      --faint: rgba(164, 186, 213, .12);
+      --line: rgba(180, 212, 239, .18);
+      --glass: rgba(7, 15, 27, .64);
+      --glass-strong: rgba(9, 19, 34, .86);
+      --accent: #ffb300;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    body {
+      color: var(--ink);
+      font-family: var(--sans);
+      letter-spacing: .01em;
+    }
+
+    button, input { font: inherit; }
+
+    button {
+      color: inherit;
+    }
+
+    #app {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      isolation: isolate;
+      background:
+        radial-gradient(circle at 51% 48%, rgba(54, 37, 26, .18), transparent 24%),
+        radial-gradient(circle at 50% 45%, #08101d 0, #03060d 40%, #010207 100%);
+    }
+
+    #scene {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+      outline: none;
+    }
+
+    #scene:active { cursor: grabbing; }
+    body.is-hovering #scene { cursor: pointer; }
+
+    .atmosphere,
+    .vignette,
+    .grain {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .atmosphere {
+      z-index: 1;
+      background:
+        radial-gradient(ellipse at 50% 48%, transparent 27%, rgba(0, 0, 0, .06) 54%, rgba(0, 0, 0, .62) 100%),
+        linear-gradient(115deg, rgba(0, 210, 255, .035), transparent 32%, transparent 67%, rgba(255, 82, 82, .025));
+      mix-blend-mode: screen;
+    }
+
+    .vignette {
+      z-index: 2;
+      box-shadow: inset 0 0 180px 38px rgba(0, 0, 0, .54);
+    }
+
+    .grain {
+      z-index: 3;
+      opacity: .055;
+      mix-blend-mode: screen;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    .glass {
+      border: 1px solid var(--line);
+      background: var(--glass);
+      box-shadow: 0 18px 60px rgba(0, 0, 0, .24), inset 0 1px 0 rgba(255, 255, 255, .06);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .minimal-header {
+      position: absolute;
+      top: 24px;
+      left: 28px;
+      right: 28px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+
+    .icon-button {
+      display: inline-grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      padding: 0;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      background: transparent;
+      cursor: pointer;
+      pointer-events: auto;
+      transition: background .2s ease, border-color .2s ease, color .2s ease, transform .2s ease;
+    }
+
+    .icon-button:hover,
+    .icon-button:focus-visible {
+      border-color: rgba(196, 222, 245, .24);
+      background: rgba(150, 194, 232, .12);
+      outline: none;
+      transform: translateY(-1px);
+    }
+
+    .icon-button svg {
+      width: 19px;
+      height: 19px;
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 1.6;
+    }
+
+    .brand {
+      min-width: 0;
+      line-height: 1;
+    }
+
+    .brand-kicker,
+    .eyebrow,
+    .panel-kicker,
+    .hud-label {
+      color: #87a1bc;
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+    }
+
+    .brand-kicker {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--accent);
+      opacity: .9;
+    }
+
+    .brand h1 {
+      margin: 0;
+      overflow: hidden;
+      color: #edf7ff;
+      font-family: var(--sans);
+      font-size: clamp(13px, 1.4vw, 17px);
+      font-weight: 550;
+      letter-spacing: .12em;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .avatar-button {
+      color: #d4e4f1;
+    }
+
+    .avatar-button svg {
+      width: 23px;
+      height: 23px;
+      stroke-width: 1.25;
+    }
+
+    .status-links {
+      position: absolute;
+      top: 78px;
+      right: 28px;
+      z-index: 8;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #91a5ba;
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+
+    .status-links a {
+      color: #9db2c5;
+      text-decoration: none;
+      transition: color .2s ease, text-shadow .2s ease;
+    }
+
+    .status-links a:hover,
+    .status-links a:focus-visible {
+      color: #fff;
+      outline: none;
+      text-shadow: 0 0 12px currentColor;
+    }
+
+    .status-state {
+      color: #6f8498;
+      font-size: 8px;
+      letter-spacing: .12em;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #00e676;
+      box-shadow: 0 0 5px #00e676, 0 0 15px rgba(0, 230, 118, .78);
+      animation: breathe 1.8s ease-in-out infinite;
+    }
+
+    .star-labels {
+      position: absolute;
+      inset: 0;
+      z-index: 7;
+      pointer-events: none;
+    }
+
+    .node-label {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 8px;
+      border: 1px solid rgba(176, 206, 234, .16);
+      border-radius: 7px;
+      color: rgba(227, 243, 255, .75);
+      background: rgba(3, 9, 17, .42);
+      box-shadow: 0 5px 20px rgba(0, 0, 0, .22);
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: .13em;
+      opacity: .68;
+      transform: translate(-50%, -175%);
+      transition: opacity .2s ease, border-color .2s ease, color .2s ease, background .2s ease;
+      white-space: nowrap;
+    }
+
+    .node-label::after {
+      position: absolute;
+      right: 50%;
+      bottom: -12px;
+      width: 1px;
+      height: 10px;
+      background: linear-gradient(180deg, var(--label-color), transparent);
+      content: "";
+      opacity: .65;
+    }
+
+    .node-label.is-hovered,
+    .node-label.is-focused {
+      border-color: color-mix(in srgb, var(--label-color) 65%, white 10%);
+      color: #fff;
+      background: rgba(6, 18, 31, .8);
+      opacity: 1;
+    }
+
+    .label-bullet {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--label-color);
+      box-shadow: 0 0 9px var(--label-color);
+    }
+
+    .hud-caption {
+      position: absolute;
+      left: 30px;
+      bottom: 28px;
+      z-index: 8;
+      color: rgba(134, 158, 182, .7);
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: .14em;
+      line-height: 1.65;
+      text-transform: uppercase;
+    }
+
+    .hud-caption strong {
+      display: block;
+      color: rgba(214, 232, 246, .83);
+      font-weight: 500;
+    }
+
+    .toast {
+      position: absolute;
+      bottom: 28px;
+      left: 50%;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 15px;
+      border: 1px solid rgba(169, 204, 231, .2);
+      border-radius: 999px;
+      color: #b9cadd;
+      background: rgba(6, 15, 27, .63);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, .25), inset 0 1px 0 rgba(255, 255, 255, .05);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: .13em;
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
+
+    .toast-mark {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    .telemetry {
+      position: absolute;
+      right: 29px;
+      bottom: 29px;
+      z-index: 8;
+      color: rgba(142, 168, 193, .61);
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: .1em;
+      line-height: 1.8;
+      text-align: right;
+      text-transform: uppercase;
+    }
+
+    .telemetry strong {
+      color: rgba(210, 229, 244, .8);
+      font-weight: 500;
+    }
+
+    .panel-backdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 15;
+      background: rgba(0, 0, 0, .18);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s ease;
+    }
+
+    .panel-backdrop.is-open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .panel {
+      position: absolute;
+      top: 94px;
+      bottom: 28px;
+      z-index: 20;
+      width: min(380px, calc(100vw - 28px));
+      overflow: auto;
+      padding: 22px;
+      border-radius: 18px;
+      background: var(--glass-strong);
+      box-shadow: 0 25px 80px rgba(0, 0, 0, .46), inset 0 1px 0 rgba(255, 255, 255, .06);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform .3s cubic-bezier(.2,.8,.2,1), opacity .25s ease;
+    }
+
+    .panel::-webkit-scrollbar { width: 5px; }
+    .panel::-webkit-scrollbar-thumb { border-radius: 5px; background: rgba(155, 190, 220, .25); }
+
+    .panel.left-panel {
+      left: 14px;
+      border-left: 1px solid rgba(135, 184, 224, .26);
+      transform: translateX(-24px);
+    }
+
+    .panel.right-panel {
+      right: 14px;
+      border-right: 1px solid rgba(135, 184, 224, .26);
+      transform: translateX(24px);
+    }
+
+    .panel.is-open {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(0);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 15px;
+      margin-bottom: 24px;
+    }
+
+    .panel-header h2 {
+      margin: 6px 0 0;
+      color: #eff8ff;
+      font-size: 18px;
+      font-weight: 540;
+      letter-spacing: .02em;
+    }
+
+    .close-button {
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border: 1px solid rgba(171, 204, 231, .15);
+      border-radius: 8px;
+      color: #9fb5c9;
+      background: rgba(130, 167, 198, .06);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .close-button:hover,
+    .close-button:focus-visible {
+      border-color: rgba(171, 204, 231, .38);
+      color: #fff;
+      outline: none;
+    }
+
+    .panel-copy {
+      margin: -12px 0 22px;
+      color: #8195a9;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .mission-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .mission-button {
+      display: grid;
+      grid-template-columns: 13px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 11px;
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid rgba(171, 204, 231, .11);
+      border-radius: 10px;
+      color: #d4e5f2;
+      background: rgba(123, 168, 204, .045);
+      cursor: pointer;
+      text-align: left;
+      transition: border-color .2s ease, background .2s ease, transform .2s ease;
+    }
+
+    .mission-button:hover,
+    .mission-button:focus-visible {
+      border-color: color-mix(in srgb, var(--service-color) 64%, transparent);
+      background: color-mix(in srgb, var(--service-color) 9%, rgba(123, 168, 204, .045));
+      outline: none;
+      transform: translateX(2px);
+    }
+
+    .mission-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--service-color);
+      box-shadow: 0 0 9px var(--service-color);
+    }
+
+    .mission-name {
+      display: block;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: .13em;
+    }
+
+    .mission-orbit {
+      display: block;
+      margin-top: 4px;
+      color: #71869b;
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: .07em;
+    }
+
+    .mission-arrow {
+      color: #7890a4;
+      font-size: 16px;
+    }
+
+    .panel-divider {
+      height: 1px;
+      margin: 22px 0;
+      background: linear-gradient(90deg, rgba(171, 204, 231, .2), transparent);
+    }
+
+    .reset-view {
+      width: 100%;
+      padding: 11px 13px;
+      border: 1px solid rgba(171, 204, 231, .17);
+      border-radius: 9px;
+      color: #b8cadd;
+      background: rgba(141, 183, 215, .06);
+      cursor: pointer;
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .reset-view:hover,
+    .reset-view:focus-visible {
+      border-color: rgba(171, 204, 231, .4);
+      color: #fff;
+      outline: none;
+    }
+
+    .connection-list {
+      display: grid;
+      gap: 13px;
+    }
+
+    .connection-row {
+      padding: 13px;
+      border: 1px solid rgba(171, 204, 231, .12);
+      border-radius: 11px;
+      background: rgba(125, 169, 202, .04);
+    }
+
+    .connection-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: .14em;
+    }
+
+    .connection-title::before {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--service-color);
+      box-shadow: 0 0 8px var(--service-color);
+      content: "";
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 86px;
+      gap: 8px;
+    }
+
+    .field-label {
+      display: block;
+      margin-bottom: 5px;
+      color: #71879c;
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .field-input {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid rgba(171, 204, 231, .15);
+      border-radius: 7px;
+      color: #e7f3fb;
+      background: rgba(2, 7, 14, .66);
+      outline: none;
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .field-input:focus {
+      border-color: rgba(115, 205, 255, .65);
+      box-shadow: 0 0 0 3px rgba(43, 175, 239, .1);
+    }
+
+    .settings-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .save-settings {
+      flex: 1;
+      padding: 11px 14px;
+      border: 1px solid rgba(0, 230, 118, .44);
+      border-radius: 9px;
+      color: #caffdf;
+      background: rgba(0, 230, 118, .09);
+      cursor: pointer;
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+
+    .save-settings:hover,
+    .save-settings:focus-visible {
+      background: rgba(0, 230, 118, .16);
+      outline: none;
+    }
+
+    .settings-status {
+      min-height: 26px;
+      margin: 12px 1px 0;
+      color: #8da3b6;
+      font-family: var(--mono);
+      font-size: 9px;
+      line-height: 1.5;
+    }
+
+    .settings-status.is-error { color: #ff9d9d; }
+    .settings-status.is-success { color: #95f6bd; }
+
+    .search-panel {
+      position: absolute;
+      top: 91px;
+      right: 70px;
+      z-index: 20;
+      width: min(300px, calc(100vw - 32px));
+      padding: 14px;
+      border-radius: 14px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-8px);
+      transition: opacity .2s ease, transform .2s ease;
+    }
+
+    .search-panel.is-open {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid rgba(171, 204, 231, .18);
+      border-radius: 9px;
+      color: #edf7ff;
+      background: rgba(2, 8, 16, .72);
+      outline: none;
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .search-input:focus {
+      border-color: rgba(115, 205, 255, .62);
+    }
+
+    .search-results {
+      display: grid;
+      gap: 5px;
+      margin-top: 9px;
+    }
+
+    .search-result {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      width: 100%;
+      padding: 8px 9px;
+      border: 0;
+      border-radius: 7px;
+      color: #afc4d5;
+      background: transparent;
+      cursor: pointer;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: .08em;
+      text-align: left;
+    }
+
+    .search-result:hover,
+    .search-result:focus-visible {
+      background: rgba(128, 178, 215, .1);
+      color: #fff;
+      outline: none;
+    }
+
+    .search-result-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--service-color);
+      box-shadow: 0 0 8px var(--service-color);
+    }
+
+    .notice {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      z-index: 30;
+      max-width: min(420px, calc(100vw - 32px));
+      padding: 12px 16px;
+      border: 1px solid rgba(170, 207, 232, .22);
+      border-radius: 10px;
+      color: #d7e9f7;
+      background: rgba(5, 14, 25, .88);
+      box-shadow: 0 18px 55px rgba(0, 0, 0, .38);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: .06em;
+      line-height: 1.45;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, calc(-50% + 10px));
+      transition: opacity .25s ease, transform .25s ease;
+    }
+
+    .notice.is-visible {
+      opacity: 1;
+      transform: translate(-50%, -50%);
+    }
+
+    .fatal {
+      position: absolute;
+      inset: 0;
+      z-index: 100;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      color: #f6fbff;
+      background: #02040a;
+      font-family: var(--mono);
+      text-align: center;
+    }
+
+    .fatal p {
+      max-width: 500px;
+      color: #ffb0b0;
+      font-size: 12px;
+      line-height: 1.65;
+    }
+
+    @keyframes breathe { 0%, 100% { opacity: .55; transform: scale(.9); } 50% { opacity: 1; transform: scale(1.15); } }
+
+    @media (max-width: 700px) {
+      .minimal-header { top: 17px; left: 18px; right: 18px; }
+      .brand-kicker { margin-bottom: 5px; font-size: 8px; }
+      .brand h1 { font-size: 13px; letter-spacing: .1em; }
+      .status-links { top: 66px; right: 18px; gap: 7px; font-size: 8px; }
+      .status-state { display: none; }
+      .toast { bottom: 16px; max-width: calc(100vw - 30px); overflow: hidden; padding: 9px 12px; font-size: 8px; text-overflow: ellipsis; }
+      .hud-caption, .telemetry { display: none; }
+      .panel { top: 78px; bottom: 12px; }
+      .search-panel { top: 72px; right: 14px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+      }
+    }
+  </style>
 </head>
 <body>
-    <main class="observatory">
-        <canvas id="space" aria-label="Interactive black hole star system"></canvas>
-        <div class="grain" aria-hidden="true"></div>
-        <header class="hud">
-            <div>
-                <p class="eyebrow">ATG / DEEP SPACE OBSERVATORY</p>
-                <h1>ATG</h1>
-                <p class="subtitle">Your services, in orbit.</p>
-            </div>
-            <div class="status"><span class="status-dot"></span> LIVE SIMULATION</div>
-        </header>
-        <section class="instructions" aria-label="Simulation controls">
-            <p><span class="key">CLICK</span> a world to follow its orbit</p>
-            <p><span class="key">DRAG</span> a world to bend its orbit</p>
-            <button id="reset" type="button">Reset system</button>
-        </section>
-        <div class="legend" aria-hidden="true">
-            <span><i class="legend-ring"></i> event horizon</span>
-            <span><i class="legend-star"></i> movable star</span>
+  <div id="app">
+    <canvas id="scene" aria-label="Interactive Servarr black hole simulation"></canvas>
+    <div class="atmosphere" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
+
+    <div id="starLabels" class="star-labels" aria-hidden="true"></div>
+
+    <header class="minimal-header">
+      <div class="brand">
+        <span class="brand-kicker">ATG / LOCAL MEDIA</span>
+        <h1>ATG Servarr</h1>
+      </div>
+      <div class="top-actions">
+        <button id="menuButton" class="icon-button" type="button" aria-label="Open explorer menu" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"></path></svg>
+        </button>
+        <button id="searchButton" class="icon-button" type="button" aria-label="Search Servarr nodes" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.7" cy="10.7" r="6.1"></circle><path d="m15.3 15.3 4.6 4.6"></path></svg>
+        </button>
+        <button id="settingsButton" class="icon-button avatar-button" type="button" aria-label="Edit Servarr connection settings" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="10" r="2.5"></circle><path d="M7.8 18.1c.7-2.2 2.1-3.3 4.2-3.3s3.5 1.1 4.2 3.3"></path></svg>
+        </button>
+      </div>
+    </header>
+
+    <nav class="status-links" aria-label="ATG service links">
+      <span class="status-dot"></span>
+      <a href="https://seer.dropped.lat" target="_blank" rel="noopener noreferrer" title="Request service">REQ / SEER</a>
+      <a href="https://emby.dropped.lat" target="_blank" rel="noopener noreferrer">EMBY</a>
+      <a href="https://sonarr.dropped.lat" target="_blank" rel="noopener noreferrer">SONARR</a>
+      <a href="https://dtc.dropped.lat" target="_blank" rel="noopener noreferrer">DTC</a>
+      <span id="linkState" class="status-state" aria-live="polite">STABLE</span>
+    </nav>
+
+    <aside id="menuPanel" class="panel left-panel" aria-label="Explorer navigation" aria-hidden="true">
+      <div class="panel-header">
+        <div><span class="panel-kicker">Navigation / node index</span><h2>Constellation map</h2></div>
+        <button class="close-button" type="button" data-close-panel="menuPanel" aria-label="Close navigation">&times;</button>
+      </div>
+      <p class="panel-copy">Select a service to focus its orbit and open the configured local destination.</p>
+      <div id="missionList" class="mission-list"></div>
+      <div class="panel-divider"></div>
+      <button id="resetView" class="reset-view" type="button">Reset camera to event horizon</button>
+    </aside>
+
+    <aside id="settingsPanel" class="panel right-panel" aria-label="Servarr connection settings" aria-hidden="true">
+      <div class="panel-header">
+        <div><span class="panel-kicker">Connection matrix / local only</span><h2>Endpoint settings</h2></div>
+        <button class="close-button" type="button" data-close-panel="settingsPanel" aria-label="Close endpoint settings">&times;</button>
+      </div>
+      <p class="panel-copy">IP addresses and ports are stored only in this browser. Each star opens its endpoint over HTTP in a new tab.</p>
+      <form id="settingsForm">
+        <div id="connectionList" class="connection-list"></div>
+        <div class="settings-actions">
+          <button class="save-settings" type="submit">Save local endpoints</button>
         </div>
-    </main>
-    <script src="assets/js/black-hole.js"></script>
+        <p id="settingsStatus" class="settings-status" aria-live="polite"></p>
+      </form>
+    </aside>
+
+    <div id="searchPanel" class="search-panel glass" aria-hidden="true">
+      <input id="searchInput" class="search-input" type="search" placeholder="Search service nodes..." autocomplete="off" aria-label="Search service nodes">
+      <div id="searchResults" class="search-results"></div>
+    </div>
+
+    <div id="panelBackdrop" class="panel-backdrop" aria-hidden="true"></div>
+
+    <div class="hud-caption">
+      <strong>GARGANTUA / LOCAL SYSTEM</strong>
+      <span>gravitational observatory · live telemetry</span>
+    </div>
+
+    <div class="toast"><span class="toast-mark"></span><span>DRAG SERVARR STARS&nbsp; | &nbsp;CLICK TO GOTO DESTINATION</span></div>
+
+    <div class="telemetry">
+      <div><span>nodes </span><strong>06</strong><span> / active</span></div>
+      <div><span>simulation </span><strong id="simTime">T+ 000.0s</strong></div>
+      <div><span>camera </span><strong id="cameraDistance">036.0u</strong></div>
+    </div>
+
+    <div id="notice" class="notice" role="status" aria-live="polite"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/Pass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+  <script>
+    (() => {
+      "use strict";
+
+      const app = document.getElementById("app");
+      const canvas = document.getElementById("scene");
+      const notice = document.getElementById("notice");
+      const starLabels = document.getElementById("starLabels");
+      const missionList = document.getElementById("missionList");
+      const connectionList = document.getElementById("connectionList");
+      const settingsForm = document.getElementById("settingsForm");
+      const settingsStatus = document.getElementById("settingsStatus");
+      const searchPanel = document.getElementById("searchPanel");
+      const searchInput = document.getElementById("searchInput");
+      const searchResults = document.getElementById("searchResults");
+      const panelBackdrop = document.getElementById("panelBackdrop");
+      const linkState = document.getElementById("linkState");
+      const simTime = document.getElementById("simTime");
+      const cameraDistance = document.getElementById("cameraDistance");
+      const storageKey = "servarr-cosmic-explorer-endpoints-v1";
+
+      const services = [
+        { id: "radarr", name: "RADARR", color: "#FFB300", icon: "play", a: 18, e: .28, inclination: .35, omega: .35, theta: .48, port: 7878 },
+        { id: "sonarr", name: "SONARR", color: "#00D2FF", icon: "geometric", a: 29, e: .18, inclination: -.22, omega: 1.22, theta: 2.3, port: 8989 },
+        { id: "prowlarr", name: "PROWLARR", color: "#FF6F00", icon: "vortex", a: 14, e: .12, inclination: .52, omega: 2.1, theta: 4.05, port: 9696 },
+        { id: "readarr", name: "READARR", color: "#00E676", icon: "book", a: 23, e: .32, inclination: -.41, omega: 2.68, theta: 1.35, port: 8787 },
+        { id: "lidarr", name: "LIDARR", color: "#00E5FF", icon: "vinyl", a: 34, e: .21, inclination: .15, omega: 3.56, theta: 3.22, port: 8686 },
+        { id: "bazarr", name: "BAZARR", color: "#FF5252", icon: "subtitle", a: 41, e: .38, inclination: -.18, omega: 4.25, theta: 5.14, port: 6767 }
+      ];
+
+      function createDefaultSettings() {
+        return services.reduce((settings, service) => {
+          settings[service.id] = { host: "localhost", port: String(service.port) };
+          return settings;
+        }, {});
+      }
+
+      function showNotice(message, duration = 3000) {
+        notice.textContent = message;
+        notice.classList.add("is-visible");
+        window.clearTimeout(showNotice.timer);
+        showNotice.timer = window.setTimeout(() => notice.classList.remove("is-visible"), duration);
+      }
+
+      function readSettings() {
+        const defaults = createDefaultSettings();
+        try {
+          const raw = window.localStorage.getItem(storageKey);
+          if (!raw) return defaults;
+          const parsed = JSON.parse(raw);
+          services.forEach((service) => {
+            const saved = parsed && parsed[service.id];
+            if (saved && typeof saved.host === "string" && typeof saved.port === "string") {
+              defaults[service.id] = { host: saved.host, port: saved.port };
+            }
+          });
+        } catch (error) {
+          showNotice("Saved endpoint settings could not be read. Defaults restored.", 5000);
+        }
+        return defaults;
+      }
+
+      let endpointSettings = readSettings();
+
+      function endpointUrl(service) {
+        const endpoint = endpointSettings[service.id];
+        const host = endpoint.host.includes(":") && !endpoint.host.startsWith("[") ? `[${endpoint.host}]` : endpoint.host;
+        return `http://${host}:${endpoint.port}`;
+      }
+
+      function validHost(value) {
+        const host = value.trim().replace(/^\[|\]$/g, "");
+        if (!host || host.length > 253 || !/^[a-zA-Z0-9._:-]+$/.test(host) || host.includes("..")) {
+          throw new Error("Use a hostname, IPv4 address, or IPv6 address without a path.");
+        }
+        return host;
+      }
+
+      function validPort(value) {
+        const port = Number(value);
+        if (!Number.isInteger(port) || port < 1 || port > 65535) {
+          throw new Error("Ports must be whole numbers from 1 to 65535.");
+        }
+        return String(port);
+      }
+
+      function renderSettingsForm() {
+        connectionList.innerHTML = services.map((service) => {
+          const saved = endpointSettings[service.id];
+          return `
+            <div class="connection-row" style="--service-color:${service.color}">
+              <div class="connection-title">${service.name}</div>
+              <div class="field-grid">
+                <label><span class="field-label">IP / host</span><input class="field-input" name="${service.id}-host" value="${saved.host}" inputmode="url" spellcheck="false" aria-label="${service.name} IP or host"></label>
+                <label><span class="field-label">Port</span><input class="field-input" name="${service.id}-port" value="${saved.port}" inputmode="numeric" type="number" min="1" max="65535" aria-label="${service.name} port"></label>
+              </div>
+            </div>`;
+        }).join("");
+      }
+
+      function renderMissionList() {
+        missionList.innerHTML = services.map((service) => `
+          <button class="mission-button" type="button" data-service-id="${service.id}" style="--service-color:${service.color}">
+            <span class="mission-dot"></span>
+            <span><span class="mission-name">${service.name}</span><span class="mission-orbit">a ${service.a.toFixed(1)}u · e ${service.e.toFixed(2)} · i ${service.inclination.toFixed(2)} rad</span></span>
+            <span class="mission-arrow">›</span>
+          </button>`).join("");
+      }
+
+      renderSettingsForm();
+      renderMissionList();
+
+      if (!window.THREE || !THREE.OrbitControls || !THREE.EffectComposer || !THREE.UnrealBloomPass) {
+        app.innerHTML = '<div class="fatal"><div><h1>ATG Servarr</h1><p>Three.js post-processing could not be loaded. Check the network connection and reload this standalone page.</p></div></div>';
+        return;
+      }
+
+      const renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: true,
+        alpha: false,
+        powerPreference: "high-performance"
+      });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight, false);
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.35;
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x02040a);
+      scene.fog = new THREE.FogExp2(0x02040a, .0042);
+
+      const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, .1, 240);
+      camera.position.set(50, 54, 82);
+      camera.lookAt(0, 0, 0);
+
+      const controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = .055;
+      controls.enablePan = false;
+      controls.minDistance = 18;
+      controls.maxDistance = 125;
+      controls.minPolarAngle = .25;
+      controls.maxPolarAngle = Math.PI - .25;
+      controls.target.set(0, 0, 0);
+      controls.update();
+
+      const composer = new THREE.EffectComposer(renderer);
+      const renderPass = new THREE.RenderPass(scene, camera);
+      const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 2.2, 1.1, .12);
+      bloomPass.threshold = .08;
+      bloomPass.strength = 2.1;
+      bloomPass.radius = 1.1;
+      composer.addPass(renderPass);
+      composer.addPass(bloomPass);
+
+      const orbitRoot = new THREE.Group();
+      scene.add(orbitRoot);
+
+      function seededRandom(seed) {
+        const x = Math.sin(seed * 12.9898) * 43758.5453;
+        return x - Math.floor(x);
+      }
+
+      function createStarfield() {
+        const count = 1050;
+        const positions = new Float32Array(count * 3);
+        const colors = new Float32Array(count * 3);
+        for (let index = 0; index < count; index += 1) {
+          const theta = seededRandom(index + 1) * Math.PI * 2;
+          const phi = Math.acos(1 - seededRandom(index + 11) * 2);
+          const radius = 64 + seededRandom(index + 31) * 32;
+          const x = Math.sin(phi) * Math.cos(theta) * radius;
+          const y = Math.cos(phi) * radius;
+          const z = Math.sin(phi) * Math.sin(theta) * radius;
+          positions[index * 3] = x;
+          positions[index * 3 + 1] = y;
+          positions[index * 3 + 2] = z;
+          const tint = seededRandom(index + 81);
+          colors[index * 3] = .53 + tint * .38;
+          colors[index * 3 + 1] = .64 + tint * .32;
+          colors[index * 3 + 2] = .78 + tint * .22;
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+        const material = new THREE.PointsMaterial({
+          size: .12,
+          sizeAttenuation: true,
+          vertexColors: true,
+          transparent: true,
+          opacity: .72,
+          depthWrite: false,
+          depthTest: false,
+          blending: THREE.AdditiveBlending
+        });
+        const points = new THREE.Points(geometry, material);
+        points.renderOrder = -60;
+        return points;
+      }
+
+      scene.add(createStarfield());
+
+      function createDebrisField() {
+        const debrisRoot = new THREE.Group();
+        const count = 520;
+        const pointPositions = new Float32Array(count * 3);
+        const pointColors = new Float32Array(count * 3);
+        const streakPositions = new Float32Array(count * 6);
+        const streakColors = new Float32Array(count * 6);
+        const palette = [
+          new THREE.Color("#fff4cf"),
+          new THREE.Color("#ffbc62"),
+          new THREE.Color("#ff7635"),
+          new THREE.Color("#d6eaff")
+        ];
+
+        for (let index = 0; index < count; index += 1) {
+          const radius = 4.8 + Math.pow(seededRandom(index + 401), .72) * 31;
+          const angle = seededRandom(index + 601) * Math.PI * 2;
+          const horizontalStretch = 1.48;
+          const depthCompression = .68;
+          const x = Math.cos(angle) * radius * horizontalStretch;
+          const z = Math.sin(angle) * radius * depthCompression;
+          const y = (seededRandom(index + 801) - .5) * (.16 + radius * .012);
+          const color = palette[Math.floor(seededRandom(index + 1001) * palette.length)];
+          const intensity = .58 + seededRandom(index + 1201) * .42;
+          const tangentX = -Math.sin(angle) * (.18 + seededRandom(index + 1401) * .72);
+          const tangentZ = Math.cos(angle) * (.18 + seededRandom(index + 1601) * .72);
+
+          pointPositions[index * 3] = x;
+          pointPositions[index * 3 + 1] = y;
+          pointPositions[index * 3 + 2] = z;
+          pointColors[index * 3] = color.r * intensity;
+          pointColors[index * 3 + 1] = color.g * intensity;
+          pointColors[index * 3 + 2] = color.b * intensity;
+
+          const streakOffset = index * 6;
+          streakPositions[streakOffset] = x;
+          streakPositions[streakOffset + 1] = y;
+          streakPositions[streakOffset + 2] = z;
+          streakPositions[streakOffset + 3] = x - tangentX;
+          streakPositions[streakOffset + 4] = y;
+          streakPositions[streakOffset + 5] = z - tangentZ;
+          for (let channel = 0; channel < 2; channel += 1) {
+            const colorOffset = index * 6 + channel * 3;
+            streakColors[colorOffset] = color.r * intensity;
+            streakColors[colorOffset + 1] = color.g * intensity;
+            streakColors[colorOffset + 2] = color.b * intensity;
+          }
+        }
+
+        const pointGeometry = new THREE.BufferGeometry();
+        pointGeometry.setAttribute("position", new THREE.BufferAttribute(pointPositions, 3));
+        pointGeometry.setAttribute("color", new THREE.BufferAttribute(pointColors, 3));
+        const points = new THREE.Points(pointGeometry, new THREE.PointsMaterial({
+          size: .2,
+          sizeAttenuation: true,
+          vertexColors: true,
+          transparent: true,
+          opacity: .74,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        }));
+        points.renderOrder = -46;
+
+        const streakGeometry = new THREE.BufferGeometry();
+        streakGeometry.setAttribute("position", new THREE.BufferAttribute(streakPositions, 3));
+        streakGeometry.setAttribute("color", new THREE.BufferAttribute(streakColors, 3));
+        const streaks = new THREE.LineSegments(streakGeometry, new THREE.LineBasicMaterial({
+          vertexColors: true,
+          transparent: true,
+          opacity: .2,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        }));
+        streaks.renderOrder = -45;
+
+        debrisRoot.rotation.x = .06;
+        debrisRoot.rotation.z = -.035;
+        debrisRoot.add(points, streaks);
+        return debrisRoot;
+      }
+
+      const debrisField = createDebrisField();
+      scene.add(debrisField);
+
+      const blackHoleUniforms = {
+        uTime: { value: 0 },
+        uAspect: { value: window.innerWidth / window.innerHeight },
+        uCameraDistance: { value: 92 }
+      };
+
+      const blackHoleVertex = `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `;
+
+      const blackHoleFragment = `
+        precision highp float;
+        varying vec2 vUv;
+        uniform float uTime;
+        uniform float uAspect;
+        uniform float uCameraDistance;
+        #define PI 3.14159265359
+        const float R_IN = 3.0;
+        const float R_OUT = 9.0;
+
+        float hash31(vec3 p) {
+          p = fract(p * 0.1031);
+          p += dot(p, p.yzx + 33.33);
+          return fract((p.x + p.y) * p.z);
+        }
+
+        float noise3(vec3 p) {
+          vec3 i = floor(p);
+          vec3 f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(
+            mix(mix(hash31(i), hash31(i + vec3(1.0, 0.0, 0.0)), f.x),
+                mix(hash31(i + vec3(0.0, 1.0, 0.0)), hash31(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
+            mix(mix(hash31(i + vec3(0.0, 0.0, 1.0)), hash31(i + vec3(1.0, 0.0, 1.0)), f.x),
+                mix(hash31(i + vec3(0.0, 1.0, 1.0)), hash31(i + vec3(1.0, 1.0, 1.0)), f.x), f.y),
+            f.z
+          );
+        }
+
+        float fbm(vec3 p) {
+          float value = 0.0;
+          float amplitude = 0.52;
+          mat3 rotate = mat3(0.80, 0.48, 0.36, -0.48, 0.87, -0.16, -0.36, -0.16, 0.92);
+          for (int octave = 0; octave < 5; octave++) {
+            value += amplitude * noise3(p);
+            p = rotate * p * 2.03 + 7.1;
+            amplitude *= .5;
+          }
+          return value;
+        }
+
+        void main() {
+          vec2 screen = (vUv - .5) * vec2(uAspect, 1.0);
+          float screenRadius = length(screen);
+          float edgeMask = 1.0 - smoothstep(.47, .62, screenRadius);
+          vec3 rayOrigin = vec3(screen.x * 32.0, screen.y * 32.0, 46.0);
+          vec3 rayDirection = normalize(vec3(-screen.x * .72, -screen.y * .72, -1.0));
+          vec3 point = rayOrigin;
+          vec3 accumulated = vec3(0.0);
+          float accumulatedAlpha = 0.0;
+
+          for (int stepIndex = 0; stepIndex < 170; stepIndex++) {
+            float radius = length(point);
+            if (radius < 1.24) {
+              accumulated *= .02;
+              accumulatedAlpha = 1.0;
+              break;
+            }
+            if (radius > 24.0) break;
+
+            float stepSize = .055 + radius * .0046;
+            vec3 gravity = -normalize(point) * (1.18 / max(radius * radius, 1.0));
+            vec3 frameDrag = vec3(-point.z, 0.0, point.x) * (.12 / max(radius * radius * radius, 1.0));
+            rayDirection = normalize(rayDirection + (gravity + frameDrag) * stepSize);
+
+            float radialBand = smoothstep(R_IN - .22, R_IN + .16, radius) * (1.0 - smoothstep(R_OUT - .72, R_OUT + .05, radius));
+            float diskThickness = .035 + radius * .014;
+            float equatorialDensity = exp(-pow(abs(point.y) / diskThickness, 2.0));
+            float angularVelocity = 2.9 * pow(max(radius, 3.0), -1.5);
+            float flowAngle = atan(point.z, point.x) - uTime * angularVelocity;
+            vec3 flowPosition = vec3(cos(flowAngle) * radius * .56, point.y * 4.4 + uTime * .12, sin(flowAngle) * radius * .56);
+            float turbulent = clamp(fbm(flowPosition), 0.0, 1.0);
+            float density = radialBand * equatorialDensity * (.35 + turbulent * 1.45);
+            vec3 velocity = normalize(vec3(-point.z, 0.0, point.x)) * sqrt(3.0 / max(radius, 3.0));
+            float approaching = clamp(dot(velocity, -rayDirection) * 1.25 + .5, 0.0, 1.0);
+            float doppler = clamp(.22 + approaching * 1.22, .18, 1.55);
+            vec3 deep_amber = vec3(.78, .18, .04);
+            vec3 bright_amber = vec3(.95, .45, .15);
+            vec3 gold = vec3(1.0, .55, .15);
+            vec3 blueWhite = vec3(.75, .92, 1.0);
+            vec3 plasma = mix(deep_amber, bright_amber, smoothstep(.08, .6, turbulent));
+            plasma = mix(plasma, gold, smoothstep(.4, .85, turbulent));
+            plasma = mix(plasma, blueWhite, smoothstep(.7, 1.0, doppler) * .85);
+            float emission = density * (3.2 + 4.5 * turbulent) * doppler;
+            accumulated += plasma * emission * stepSize * (1.0 - accumulatedAlpha);
+            accumulatedAlpha = min(1.0, accumulatedAlpha + density * stepSize * .42);
+            point += rayDirection * stepSize;
+          }
+
+          float eventShadow = 1.0 - smoothstep(.105, .18, screenRadius);
+          float photonRing = exp(-pow((screenRadius - .192) / .008, 2.0));
+          float innerRing = exp(-pow((screenRadius - .257) / .035, 2.0));
+          float halo = exp(-pow((screenRadius - .31) / .11, 2.0));
+          float outerGlow = exp(-pow((screenRadius - .42) / .18, 2.0));
+          float curl = .5 + .5 * sin(atan(screen.y, screen.x) * 9.0 + uTime * .4 + screenRadius * 24.0);
+          vec3 ringColor = mix(vec3(1.0, .25, .05), vec3(1.0, .92, .55), smoothstep(-.2, .7, screen.x));
+          vec3 lensedRear = vec3(1.0, .35, .08) * innerRing * (.45 + curl * .65);
+          float rearArc = exp(-pow((abs(screen.y) - (.205 + .034 * sin(screen.x * 14.0 - uTime * .22))) / .022, 2.0));
+          rearArc *= smoothstep(.1, .52, abs(screen.x));
+          vec3 color = accumulated;
+          color += ringColor * photonRing * 4.8;
+          color += lensedRear * 1.1;
+          color += mix(vec3(.85, .18, .08), vec3(1.0, .72, .35), curl) * rearArc * .65;
+          color += vec3(1.0, .35, .12) * halo * .28;
+          color += vec3(.98, .58, .22) * outerGlow * .15;
+          color *= edgeMask;
+
+          float glowAlpha = max(accumulatedAlpha * .98, max(photonRing * .96, max(rearArc * .42, max(halo * .26, outerGlow * .16))));
+          float alpha = max(eventShadow, glowAlpha) * edgeMask;
+          color *= 1.0 - eventShadow;
+          color = pow(max(color, 0.0), vec3(.75));
+          gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
+        }
+      `;
+
+      const blackHoleMaterial = new THREE.ShaderMaterial({
+        uniforms: blackHoleUniforms,
+        vertexShader: blackHoleVertex,
+        fragmentShader: blackHoleFragment,
+        transparent: true,
+        depthWrite: false,
+        depthTest: false,
+        side: THREE.DoubleSide,
+        blending: THREE.NormalBlending
+      });
+      const blackHoleQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blackHoleMaterial);
+      blackHoleQuad.renderOrder = -40;
+      blackHoleQuad.frustumCulled = false;
+      scene.add(blackHoleQuad);
+
+      const glowTexture = (() => {
+        const textureCanvas = document.createElement("canvas");
+        textureCanvas.width = 128;
+        textureCanvas.height = 128;
+        const context = textureCanvas.getContext("2d");
+        const gradient = context.createRadialGradient(64, 64, 0, 64, 64, 64);
+        gradient.addColorStop(0, "rgba(255,255,255,1)");
+        gradient.addColorStop(.08, "rgba(255,255,255,.96)");
+        gradient.addColorStop(.28, "rgba(255,255,255,.3)");
+        gradient.addColorStop(1, "rgba(255,255,255,0)");
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, 128, 128);
+        const texture = new THREE.CanvasTexture(textureCanvas);
+        texture.needsUpdate = true;
+        return texture;
+      })();
+
+      function createIconTexture(type) {
+        const iconCanvas = document.createElement("canvas");
+        iconCanvas.width = 128;
+        iconCanvas.height = 128;
+        const context = iconCanvas.getContext("2d");
+        context.clearRect(0, 0, 128, 128);
+        context.strokeStyle = "rgba(255,255,255,.96)";
+        context.fillStyle = "rgba(255,255,255,.96)";
+        context.lineWidth = 8;
+        context.lineCap = "round";
+        context.lineJoin = "round";
+        if (type === "play") {
+          context.beginPath();
+          context.moveTo(49, 35);
+          context.lineTo(91, 64);
+          context.lineTo(49, 93);
+          context.closePath();
+          context.fill();
+        } else if (type === "geometric") {
+          context.beginPath();
+          context.moveTo(64, 25);
+          context.lineTo(94, 64);
+          context.lineTo(64, 103);
+          context.lineTo(34, 64);
+          context.closePath();
+          context.stroke();
+          context.beginPath();
+          context.moveTo(49, 64);
+          context.lineTo(79, 64);
+          context.moveTo(64, 45);
+          context.lineTo(64, 83);
+          context.stroke();
+        } else if (type === "vortex") {
+          context.beginPath();
+          context.arc(64, 64, 34, -.55, 4.7);
+          context.stroke();
+          context.beginPath();
+          context.arc(64, 64, 17, .2, 4.2);
+          context.stroke();
+          context.beginPath();
+          context.arc(64, 64, 4, 0, Math.PI * 2);
+          context.fill();
+        } else if (type === "book") {
+          context.beginPath();
+          context.moveTo(63, 34);
+          context.bezierCurveTo(49, 27, 36, 31, 30, 38);
+          context.lineTo(30, 92);
+          context.bezierCurveTo(41, 84, 52, 84, 64, 91);
+          context.bezierCurveTo(76, 84, 87, 84, 98, 92);
+          context.lineTo(98, 38);
+          context.bezierCurveTo(91, 31, 78, 27, 64, 34);
+          context.stroke();
+          context.beginPath();
+          context.moveTo(64, 34);
+          context.lineTo(64, 91);
+          context.stroke();
+        } else if (type === "vinyl") {
+          context.beginPath();
+          context.arc(64, 66, 28, 0, Math.PI * 2);
+          context.stroke();
+          context.beginPath();
+          context.arc(64, 66, 8, 0, Math.PI * 2);
+          context.stroke();
+          context.beginPath();
+          context.moveTo(38, 44);
+          context.bezierCurveTo(29, 48, 26, 57, 28, 70);
+          context.bezierCurveTo(29, 77, 34, 81, 40, 79);
+          context.moveTo(90, 44);
+          context.bezierCurveTo(99, 48, 102, 57, 100, 70);
+          context.bezierCurveTo(99, 77, 94, 81, 88, 79);
+          context.stroke();
+          context.beginPath();
+          context.moveTo(39, 47);
+          context.lineTo(39, 77);
+          context.moveTo(89, 47);
+          context.lineTo(89, 77);
+          context.stroke();
+        } else {
+          context.beginPath();
+          context.roundRect(26, 37, 76, 54, 14);
+          context.stroke();
+          context.beginPath();
+          context.moveTo(43, 91);
+          context.lineTo(37, 103);
+          context.lineTo(55, 92);
+          context.stroke();
+          context.beginPath();
+          context.moveTo(47, 64);
+          context.lineTo(81, 64);
+          context.moveTo(47, 76);
+          context.lineTo(70, 76);
+          context.stroke();
+        }
+        const texture = new THREE.CanvasTexture(iconCanvas);
+        texture.needsUpdate = true;
+        return texture;
+      }
+
+      function orientOrbit(service) {
+        service.orientation = new THREE.Matrix4().makeRotationZ(service.omega);
+        service.orientation.multiply(new THREE.Matrix4().makeRotationX(service.inclination));
+        service.inverseOrientation = service.orientation.clone().invert();
+        service.planeNormal = new THREE.Vector3(0, 0, 1).applyMatrix4(service.orientation).normalize();
+        service.orbitalPlane = new THREE.Plane(service.planeNormal.clone(), 0);
+      }
+
+      function positionAt(service, anomaly, target = new THREE.Vector3()) {
+        const radius = service.a * (1 - service.e * service.e) / (1 + service.e * Math.cos(anomaly));
+        target.set(radius * Math.cos(anomaly), radius * Math.sin(anomaly), 0).applyMatrix4(service.orientation);
+        return target;
+      }
+
+      function makeTrail(service) {
+        const trailCount = 32;
+        service.trail = [];
+        for (let index = 0; index < trailCount; index += 1) {
+          service.trail.push(positionAt(service, service.theta - index * .024));
+        }
+        const positions = new Float32Array(trailCount * 3);
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        const material = new THREE.PointsMaterial({
+          color: service.color,
+          size: .18,
+          sizeAttenuation: true,
+          transparent: true,
+          opacity: .48,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+        const points = new THREE.Points(geometry, material);
+        points.renderOrder = -1;
+        service.trailPoints = points;
+        service.trailAttribute = geometry.getAttribute("position");
+        orbitRoot.add(points);
+      }
+
+      const starPickMeshes = [];
+
+      function makeNodeLabel(service) {
+        const label = document.createElement("div");
+        label.className = "node-label";
+        label.style.setProperty("--label-color", service.color);
+        label.innerHTML = `<span class="label-bullet"></span><span>${service.name}</span>`;
+        starLabels.appendChild(label);
+        service.label = label;
+      }
+
+      function setupService(service) {
+        orientOrbit(service);
+        makeTrail(service);
+        const group = new THREE.Group();
+        const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: glowTexture,
+          color: service.color,
+          transparent: true,
+          opacity: .78,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        }));
+        glow.scale.set(2.1, 2.1, 1);
+        const core = new THREE.Mesh(
+          new THREE.SphereGeometry(.38, 18, 18),
+          new THREE.MeshBasicMaterial({ color: service.color, transparent: true, opacity: .98 })
+        );
+        const ring = new THREE.Mesh(
+          new THREE.RingGeometry(.52, .56, 32),
+          new THREE.MeshBasicMaterial({
+            color: service.color,
+            transparent: true,
+            opacity: .7,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+          })
+        );
+        const icon = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: createIconTexture(service.icon),
+          color: 0xffffff,
+          transparent: true,
+          opacity: .92,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        }));
+        icon.scale.set(.78, .78, 1);
+        core.userData.service = service;
+        core.userData.pickable = true;
+        group.add(glow, ring, core, icon);
+        group.position.copy(positionAt(service, service.theta));
+        orbitRoot.add(group);
+        service.group = group;
+        service.core = core;
+        service.ring = ring;
+        service.hovered = false;
+        service.dragging = false;
+        service.currentScale = 1;
+        starPickMeshes.push(core);
+        makeNodeLabel(service);
+      }
+
+      services.forEach(setupService);
+
+      const pointer = new THREE.Vector2();
+      const mouseTarget = new THREE.Vector2();
+      const mousePosition = new THREE.Vector2();
+      const raycaster = new THREE.Raycaster();
+      const dragPoint = new THREE.Vector3();
+      const parallaxAnchor = new THREE.Vector3();
+      const parallaxOffset = new THREE.Vector3();
+      let hoveredService = null;
+      let focusedService = null;
+      let activeDrag = null;
+      let cameraTween = null;
+      let elapsed = 0;
+
+      function updatePointer(event) {
+        const bounds = renderer.domElement.getBoundingClientRect();
+        pointer.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
+        pointer.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
+      }
+
+      function updateMouseTarget(event) {
+        if (event.pointerType === "touch") return;
+        mouseTarget.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouseTarget.y = 1 - (event.clientY / window.innerHeight) * 2;
+      }
+
+      window.addEventListener("pointermove", updateMouseTarget, { passive: true });
+      window.addEventListener("pointerleave", () => mouseTarget.set(0, 0), { passive: true });
+
+      function pickService(event) {
+        updatePointer(event);
+        raycaster.setFromCamera(pointer, camera);
+        const intersections = raycaster.intersectObjects(starPickMeshes, false);
+        return intersections.length ? intersections[0].object.userData.service : null;
+      }
+
+      function setHovered(service) {
+        if (hoveredService === service) return;
+        if (hoveredService) {
+          hoveredService.hovered = false;
+          hoveredService.label.classList.remove("is-hovered");
+        }
+        hoveredService = service;
+        if (hoveredService) {
+          hoveredService.hovered = true;
+          hoveredService.label.classList.add("is-hovered");
+          document.body.classList.add("is-hovering");
+        } else {
+          document.body.classList.remove("is-hovering");
+        }
+      }
+
+      function updateHover(event) {
+        setHovered(pickService(event));
+      }
+
+      function updateNodePosition(service) {
+        service.group.position.copy(positionAt(service, service.theta));
+      }
+
+      function updateTrail(service) {
+        service.trail.unshift(service.group.position.clone());
+        if (service.trail.length > 32) service.trail.pop();
+        for (let index = 0; index < service.trail.length; index += 1) {
+          const point = service.trail[index];
+          service.trailAttribute.setXYZ(index, point.x, point.y, point.z);
+        }
+        service.trailAttribute.needsUpdate = true;
+      }
+
+      function updateOrbits(delta) {
+        services.forEach((service) => {
+          if (!service.dragging) {
+            const radius = positionAt(service, service.theta, dragPoint).length();
+            const orbitalSpeed = Math.sqrt(46 / Math.max(radius, .01));
+            const angularVelocity = orbitalSpeed / Math.max(radius, .01);
+            service.theta += angularVelocity * delta * .16;
+          }
+          updateNodePosition(service);
+          updateTrail(service);
+          const targetScale = service.hovered || service.dragging || service === focusedService ? 1.34 : 1;
+          service.currentScale += (targetScale - service.currentScale) * .13;
+          service.group.scale.setScalar(service.currentScale);
+          service.ring.quaternion.copy(camera.quaternion);
+        });
+      }
+
+      function updateBlackHoleQuad() {
+        const distance = camera.position.distanceTo(blackHoleQuad.position);
+        const viewHeight = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * .5)) * distance;
+        blackHoleQuad.position.set(0, 0, 0);
+        blackHoleQuad.quaternion.copy(camera.quaternion);
+        blackHoleQuad.scale.set(viewHeight * camera.aspect * .84, viewHeight * .64, 1);
+        blackHoleUniforms.uAspect.value = camera.aspect;
+        blackHoleUniforms.uCameraDistance.value = distance;
+      }
+
+      function easeInOut(value) {
+        return value < .5 ? 2 * value * value : 1 - Math.pow(-2 * value + 2, 2) / 2;
+      }
+
+      function startCameraTween(service) {
+        const startPosition = camera.position.clone();
+        const startTarget = controls.target.clone();
+        if (service) {
+          const direction = camera.position.clone().sub(controls.target).normalize();
+          const endTarget = service.group.position.clone();
+          const endPosition = endTarget.clone().add(direction.multiplyScalar(7.2));
+          cameraTween = { startPosition, startTarget, endPosition, endTarget, elapsed: 0, duration: .86 };
+          focusedService = service;
+          services.forEach((candidate) => candidate.label.classList.toggle("is-focused", candidate === service));
+        } else {
+          cameraTween = {
+            startPosition,
+            startTarget,
+            endPosition: new THREE.Vector3(50, 54, 82),
+            endTarget: new THREE.Vector3(0, 0, 0),
+            elapsed: 0,
+            duration: .8
+          };
+          focusedService = null;
+          services.forEach((candidate) => candidate.label.classList.remove("is-focused"));
+        }
+      }
+
+      function updateCameraTween(delta) {
+        if (!cameraTween) return;
+        cameraTween.elapsed += delta;
+        const amount = easeInOut(Math.min(cameraTween.elapsed / cameraTween.duration, 1));
+        camera.position.lerpVectors(cameraTween.startPosition, cameraTween.endPosition, amount);
+        controls.target.lerpVectors(cameraTween.startTarget, cameraTween.endTarget, amount);
+        if (amount >= 1) cameraTween = null;
+      }
+
+      function updateCameraParallax(delta) {
+        mousePosition.lerp(mouseTarget, Math.min(1, delta * 4.5));
+        if (cameraTween || activeDrag) return;
+        if (focusedService) parallaxAnchor.copy(focusedService.group.position);
+        else parallaxAnchor.set(0, 0, 0);
+        parallaxOffset.set(mousePosition.x * 2.3, mousePosition.y * 1.35, 0);
+        const desiredTarget = parallaxAnchor.add(parallaxOffset);
+        controls.target.lerp(desiredTarget, Math.min(1, delta * 2.2));
+      }
+
+      function activateService(service) {
+        if (!service) return;
+        startCameraTween(service);
+        linkState.textContent = service.name + " FOCUS";
+        showNotice(`Opening ${service.name} at ${endpointUrl(service)}`, 2600);
+        window.setTimeout(() => {
+          const destination = endpointUrl(service);
+          const opened = window.open(destination, "_blank", "noopener,noreferrer");
+          if (!opened) window.location.assign(destination);
+        }, 650);
+      }
+
+      function updateDrag(event) {
+        updatePointer(event);
+        raycaster.setFromCamera(pointer, camera);
+        if (!raycaster.ray.intersectPlane(activeDrag.service.orbitalPlane, dragPoint)) return;
+        const localPoint = dragPoint.clone().applyMatrix4(activeDrag.service.inverseOrientation);
+        if (localPoint.lengthSq() < 1) return;
+        const service = activeDrag.service;
+        const radius = localPoint.length();
+        service.theta = Math.atan2(localPoint.y, localPoint.x);
+        service.e = THREE.MathUtils.clamp(activeDrag.startEccentricity + (radius - activeDrag.startRadius) * .006, .02, .72);
+        service.a = THREE.MathUtils.clamp(
+          radius * (1 + service.e * Math.cos(service.theta)) / Math.max(1 - service.e * service.e, .1),
+          7,
+          48
+        );
+        updateNodePosition(service);
+        updateTrail(activeDrag.service);
+      }
+
+      function onPointerDown(event) {
+        const service = pickService(event);
+        if (!service) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        cameraTween = null;
+        activeDrag = {
+          service,
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          startRadius: service.group.position.length(),
+          startEccentricity: service.e,
+          didDrag: false
+        };
+        service.dragging = true;
+        controls.enabled = false;
+        renderer.domElement.setPointerCapture(event.pointerId);
+        setHovered(service);
+      }
+
+      function onPointerMove(event) {
+        if (activeDrag) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          if (Math.hypot(event.clientX - activeDrag.startX, event.clientY - activeDrag.startY) > 4) activeDrag.didDrag = true;
+          updateDrag(event);
+          return;
+        }
+        updateHover(event);
+      }
+
+      function finishPointer(event) {
+        if (!activeDrag) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        const drag = activeDrag;
+        activeDrag = null;
+        drag.service.dragging = false;
+        controls.enabled = true;
+        if (renderer.domElement.hasPointerCapture(event.pointerId)) renderer.domElement.releasePointerCapture(event.pointerId);
+        if (drag.didDrag) {
+          linkState.textContent = "STABLE";
+          renderMissionList();
+          showNotice(`${drag.service.name} orbit phase and ellipse adjusted`, 2200);
+        } else {
+          activateService(drag.service);
+        }
+      }
+
+      renderer.domElement.addEventListener("pointerdown", onPointerDown, true);
+      renderer.domElement.addEventListener("pointermove", onPointerMove, true);
+      renderer.domElement.addEventListener("pointerup", finishPointer, true);
+      renderer.domElement.addEventListener("pointercancel", finishPointer, true);
+      renderer.domElement.addEventListener("pointerleave", () => {
+        if (!activeDrag) setHovered(null);
+      });
+
+      function projectLabels() {
+        services.forEach((service) => {
+          const projected = service.group.position.clone().project(camera);
+          const visible = projected.z > -1 && projected.z < 1;
+          service.label.style.display = visible ? "flex" : "none";
+          if (!visible) return;
+          service.label.style.left = `${(projected.x * .5 + .5) * window.innerWidth}px`;
+          service.label.style.top = `${(-projected.y * .5 + .5) * window.innerHeight}px`;
+        });
+      }
+
+      function setPanel(panel, isOpen) {
+        panel.classList.toggle("is-open", isOpen);
+        panel.setAttribute("aria-hidden", String(!isOpen));
+        panelBackdrop.classList.toggle("is-open", isOpen);
+      }
+
+      function closePanels() {
+        setPanel(document.getElementById("menuPanel"), false);
+        setPanel(document.getElementById("settingsPanel"), false);
+        searchPanel.classList.remove("is-open");
+        searchPanel.setAttribute("aria-hidden", "true");
+        document.getElementById("menuButton").setAttribute("aria-expanded", "false");
+        document.getElementById("settingsButton").setAttribute("aria-expanded", "false");
+        document.getElementById("searchButton").setAttribute("aria-expanded", "false");
+      }
+
+      function openPanel(id) {
+        closePanels();
+        const panel = document.getElementById(id);
+        setPanel(panel, true);
+        document.getElementById(id === "menuPanel" ? "menuButton" : "settingsButton").setAttribute("aria-expanded", "true");
+      }
+
+      document.getElementById("menuButton").addEventListener("click", () => {
+        const panel = document.getElementById("menuPanel");
+        if (panel.classList.contains("is-open")) closePanels();
+        else openPanel("menuPanel");
+      });
+
+      document.getElementById("settingsButton").addEventListener("click", () => {
+        const panel = document.getElementById("settingsPanel");
+        if (panel.classList.contains("is-open")) closePanels();
+        else openPanel("settingsPanel");
+      });
+
+      document.getElementById("searchButton").addEventListener("click", () => {
+        const isOpen = searchPanel.classList.toggle("is-open");
+        searchPanel.setAttribute("aria-hidden", String(!isOpen));
+        document.getElementById("searchButton").setAttribute("aria-expanded", String(isOpen));
+        if (isOpen) {
+          closePanels();
+          searchPanel.classList.add("is-open");
+          document.getElementById("searchButton").setAttribute("aria-expanded", "true");
+          searchInput.focus();
+        }
+      });
+
+      document.querySelectorAll("[data-close-panel]").forEach((button) => {
+        button.addEventListener("click", closePanels);
+      });
+      panelBackdrop.addEventListener("click", closePanels);
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") closePanels();
+      });
+
+      missionList.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-service-id]");
+        if (!button) return;
+        const service = services.find((candidate) => candidate.id === button.dataset.serviceId);
+        closePanels();
+        activateService(service);
+      });
+
+      document.getElementById("resetView").addEventListener("click", () => {
+        closePanels();
+        startCameraTween(null);
+        linkState.textContent = "STABLE";
+      });
+
+      settingsForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        try {
+          const nextSettings = {};
+          services.forEach((service) => {
+            nextSettings[service.id] = {
+              host: validHost(settingsForm.elements[`${service.id}-host`].value),
+              port: validPort(settingsForm.elements[`${service.id}-port`].value)
+            };
+          });
+          window.localStorage.setItem(storageKey, JSON.stringify(nextSettings));
+          endpointSettings = nextSettings;
+          settingsStatus.textContent = "Endpoints saved locally. Stars are ready to connect.";
+          settingsStatus.className = "settings-status is-success";
+          renderMissionList();
+          showNotice("Local endpoint matrix updated", 2200);
+        } catch (error) {
+          settingsStatus.textContent = error.message;
+          settingsStatus.className = "settings-status is-error";
+        }
+      });
+
+      function renderSearchResults(query = "") {
+        const normalized = query.trim().toLowerCase();
+        const matches = services.filter((service) => service.name.toLowerCase().includes(normalized));
+        searchResults.innerHTML = matches.map((service) => `
+          <button class="search-result" type="button" data-search-id="${service.id}" style="--service-color:${service.color}">
+            <span class="search-result-dot"></span><span>${service.name}</span>
+          </button>`).join("");
+      }
+
+      searchInput.addEventListener("input", () => renderSearchResults(searchInput.value));
+      searchResults.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-search-id]");
+        if (!button) return;
+        const service = services.find((candidate) => candidate.id === button.dataset.searchId);
+        closePanels();
+        activateService(service);
+      });
+      renderSearchResults();
+
+      function resize() {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.setSize(width, height, false);
+        composer.setSize(width, height);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+      }
+
+      window.addEventListener("resize", resize);
+      resize();
+
+      const clock = new THREE.Clock();
+      function animate() {
+        window.requestAnimationFrame(animate);
+        const delta = Math.min(clock.getDelta(), .05);
+        elapsed += delta;
+        blackHoleUniforms.uTime.value = elapsed;
+        updateOrbits(delta);
+        updateCameraTween(delta);
+        updateCameraParallax(delta);
+        debrisField.rotation.y += delta * .022;
+        controls.update();
+        updateBlackHoleQuad();
+        projectLabels();
+        simTime.textContent = `T+ ${elapsed.toFixed(1).padStart(5, "0")}s`;
+        cameraDistance.textContent = `${camera.position.distanceTo(controls.target).toFixed(1).padStart(5, "0")}u`;
+        composer.render();
+      }
+
+      animate();
+    })();
+  </script>
 </body>
 </html>
