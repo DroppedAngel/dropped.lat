@@ -4,31 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self';">
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
     <meta http-equiv="Strict-Transport-Security" content="max-age=31536000; includeSubDomains">
     <link rel="icon" href="assets/icons/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="assets/css/styles.css">
-    <title>ATG</title>
+    <title>ATG // Starfield</title>
 </head>
-<body id="bprgradient">
-    <h1>Hello World!</h1>
-    <div id="introduction">
-      <p>New Site From Angel</p>
-    </div>
-    <div id="Media" style="padding-top: 20px;">
-      <a href="//media.dropped.lat" style="text-decoration: underline; color: darkgreen;" target="_blank" rel="noopener noreferrer">
-        <h2>Emby Media Server</h2>
-      </a>
-      <a href="test.html" style="text-decoration: none; color: yellow;" target="_blank" rel="noopener noreferrer">
-        <h2>Test</h2>
-      </a>
-      <a href="//req.dropped.lat" style="text-decoration: none; color: rgb(0, 92, 128);" target="_blank" rel="noopener noreferrer">
-        <h2>Ombi</h2>
-      </a>
-      <a href="//radarr.dropped.lat" style="text-decoration: none; color: orange;" target="_blank" rel="noopener noreferrer">
-        <h2>Radarr</h2>
-      </a>
-    </div>
-</body>  
+<body>
+    <main class="observatory">
+        <canvas id="space" aria-label="Interactive black hole star system"></canvas>
+        <div class="grain" aria-hidden="true"></div>
+        <header class="hud">
+            <div>
+                <p class="eyebrow">ATG / DEEP SPACE OBSERVATORY</p>
+                <h1>ATG</h1>
+                <p class="subtitle">Your services, in orbit.</p>
+            </div>
+            <div class="status"><span class="status-dot"></span> LIVE SIMULATION</div>
+        </header>
+        <section class="instructions" aria-label="Simulation controls">
+            <p><span class="key">CLICK</span> a world to follow its orbit</p>
+            <p><span class="key">DRAG</span> a world to bend its orbit</p>
+            <button id="reset" type="button">Reset system</button>
+        </section>
+        <div class="legend" aria-hidden="true">
+            <span><i class="legend-ring"></i> event horizon</span>
+            <span><i class="legend-star"></i> movable star</span>
+        </div>
+    </main>
+    <script src="assets/js/black-hole.js"></script>
+</body>
 </html>
