@@ -1,0 +1,6 @@
+const http=require('http'),fs=require('fs'),p=require('path');// Sends no-store on every response. Without it Chromium reuses a cached copy of
+// index.html for repeated visits to the same URL, so a headless QA run can silently
+// measure the previous revision of the shader instead of the current one.
+const types={'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.mjs':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.svg':'image/svg+xml','.webp':'image/webp'};
+const noStore={'Cache-Control':'no-store, no-cache, must-revalidate','Pragma':'no-cache','Expires':'0'};
+http.createServer((req,res)=>{let f=decodeURIComponent(req.url.split('?')[0]);if(f==='/')f='/index.html';const resolved=p.join(__dirname,f);if(!resolved.startsWith(__dirname)){res.writeHead(403,noStore);res.end('forbidden');return;}fs.readFile(resolved,(e,d)=>{if(e){res.writeHead(404,noStore);res.end('not found');return;}res.writeHead(200,Object.assign({'Content-Type':types[p.extname(resolved).toLowerCase()]||'application/octet-stream'},noStore));res.end(d);});}).listen(8099,()=>console.log('serving on http://127.0.0.1:8099'));

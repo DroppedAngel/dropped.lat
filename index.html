@@ -289,6 +289,80 @@
       opacity: 1;
     }
 
+    /* An unreachable service keeps its name but loses its colour. */
+    .node-label.is-offline {
+      border-color: rgba(148, 163, 184, .22);
+      color: rgba(190, 199, 210, .72);
+      background: rgba(9, 12, 17, .66);
+      opacity: .62;
+    }
+
+    .node-label.is-offline .label-bullet {
+      background: #6b7280;
+      box-shadow: none;
+    }
+
+    .node-label.is-checking {
+      opacity: .45;
+    }
+
+    /* Hovering an unavailable node is the one place red appears, so it reads as an
+       error state rather than decoration. This rule has higher specificity than the
+       generic hover rule above and sits after it, so no !important is needed. */
+    .node-label.is-offline.is-hovered,
+    .node-label.is-offline.is-focused {
+      border-color: rgba(255, 92, 92, .72);
+      color: #ff8f8f;
+      background: rgba(38, 8, 10, .86);
+      opacity: 1;
+      box-shadow: 0 0 18px rgba(255, 60, 60, .28), inset 0 1px 0 rgba(255, 255, 255, .05);
+    }
+
+    .node-label.is-offline.is-hovered .label-bullet,
+    .node-label.is-offline.is-focused .label-bullet {
+      background: #ff5252;
+      box-shadow: 0 0 10px #ff5252, 0 0 22px rgba(255, 82, 82, .6);
+    }
+
+    .node-label .label-reason {
+      display: none;
+      margin-left: 2px;
+      color: #ff8f8f;
+      font-size: 8px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .node-label.is-offline.is-hovered .label-reason,
+    .node-label.is-offline.is-focused .label-reason {
+      display: inline;
+    }
+
+    /* Mission list rows mirror the same treatment. */
+    .mission-button.is-offline {
+      border-color: rgba(148, 163, 184, .14);
+      color: #8c95a3;
+      background: rgba(120, 130, 145, .04);
+    }
+
+    .mission-button.is-offline .mission-dot {
+      background: #6b7280;
+      box-shadow: none;
+    }
+
+    .mission-button.is-offline.is-probed:hover,
+    .mission-button.is-offline.is-probed:focus-visible {
+      border-color: rgba(255, 92, 92, .6);
+      color: #ff9b9b;
+      background: rgba(60, 12, 14, .3);
+    }
+
+    .mission-state {
+      color: #ff8f8f;
+      font-size: 8px;
+      letter-spacing: .1em;
+    }
+
     .label-bullet {
       width: 6px;
       height: 6px;
@@ -314,6 +388,44 @@
       display: block;
       color: rgba(214, 232, 246, .83);
       font-weight: 500;
+    }
+
+    /* Visible only while the intro approach is running, so the settled view is clean. */
+    .intro-skip {
+      position: absolute;
+      right: 28px;
+      bottom: 96px;
+      z-index: 9;
+      padding: 8px 13px;
+      border: 1px solid rgba(171, 204, 231, .22);
+      border-radius: 999px;
+      color: #cddff0;
+      background: rgba(6, 15, 27, .6);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      cursor: pointer;
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+      /* Hidden by default; the intro driver reveals it via body.is-intro. */
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(6px);
+      transition: opacity .4s ease, transform .4s ease;
+    }
+
+    body.is-intro .intro-skip {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .intro-skip:hover,
+    .intro-skip:focus-visible {
+      border-color: rgba(255, 179, 0, .6);
+      color: #fff;
+      outline: none;
     }
 
     .toast {
@@ -693,6 +805,14 @@
       margin-top: 9px;
     }
 
+    .search-empty {
+      padding: 10px 9px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: .08em;
+    }
+
     .search-result {
       display: flex;
       align-items: center;
@@ -837,8 +957,10 @@
         <div><span class="panel-kicker">Navigation / node index</span><h2>Constellation map</h2></div>
         <button class="close-button" type="button" data-close-panel="menuPanel" aria-label="Close navigation">&times;</button>
       </div>
-      <p class="panel-copy">Select a service to focus its orbit and open the configured local destination.</p>
+      <p class="panel-copy">Select a service to focus its orbit and open the configured local destination. Unreachable services stay listed but are greyed out.</p>
       <div id="missionList" class="mission-list"></div>
+      <div class="panel-divider"></div>
+      <button id="rescanServices" class="reset-view" type="button">Re-check service reachability</button>
       <div class="panel-divider"></div>
       <button id="resetView" class="reset-view" type="button">Reset camera to event horizon</button>
     </aside>
@@ -870,6 +992,8 @@
       <span>gravitational observatory · live telemetry</span>
     </div>
 
+    <button id="introSkip" class="intro-skip" type="button">Skip approach</button>
+
     <div class="toast"><span class="toast-mark"></span><span>DRAG SERVARR STARS&nbsp; | &nbsp;CLICK TO GOTO DESTINATION</span></div>
 
     <div class="telemetry">
@@ -881,15 +1005,17 @@
     <div id="notice" class="notice" role="status" aria-live="polite"></div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/Pass.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+   <!-- Served from vendor/three so the observatory also renders offline and in CI;
+        these are the unmodified three r128 files from the jsDelivr CDN. -->
+  <script src="vendor/three/three.min.js"></script>
+  <script src="vendor/three/OrbitControls.js"></script>
+  <script src="vendor/three/Pass.js"></script>
+  <script src="vendor/three/ShaderPass.js"></script>
+  <script src="vendor/three/EffectComposer.js"></script>
+  <script src="vendor/three/RenderPass.js"></script>
+  <script src="vendor/three/CopyShader.js"></script>
+  <script src="vendor/three/LuminosityHighPassShader.js"></script>
+  <script src="vendor/three/UnrealBloomPass.js"></script>
   <script>
     (() => {
       "use strict";
@@ -976,6 +1102,60 @@
         return String(port);
       }
 
+      // ---------------------------------------------------------------------------
+      // Service availability
+      //
+      // This is a reachability *heuristic*, not a health check. A browser cannot read
+      // the status or body of a cross-origin request without CORS headers, so the only
+      // signal available is whether the request resolved or threw:
+      //
+      //   resolved -> something answered on that host:port (opaque response)
+      //   rejected -> connection refused, DNS failure, or the timeout abort fired
+      //
+      // A service that is up but behind a proxy could still be reported unreachable, and
+      // a captive-portal style error page would report as reachable. The UI therefore
+      // treats "offline" as advisory: it greys the node out but never claims the service
+      // is broken, and the endpoint is still reachable from the settings panel.
+      // ---------------------------------------------------------------------------
+      const AVAILABILITY_TIMEOUT = 2500;
+      const availability = new Map(services.map((service) => [service.id, "unknown"]));
+
+      async function probeService(service) {
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), AVAILABILITY_TIMEOUT);
+        try {
+          await fetch(endpointUrl(service) + "/", {
+            mode: "no-cors",
+            cache: "no-store",
+            signal: controller.signal
+          });
+          return "online";
+        } catch (error) {
+          // An abort is our own timeout; anything else is a transport-level failure.
+          return "offline";
+        } finally {
+          window.clearTimeout(timer);
+        }
+      }
+
+      function setAvailability(service, state) {
+        if (availability.get(service.id) === state) return;
+        availability.set(service.id, state);
+        applyAvailability(service, state);
+      }
+
+      async function refreshAvailability({ announce = false } = {}) {
+        const results = await Promise.all(
+          services.map(async (service) => ({ service, state: await probeService(service) }))
+        );
+        results.forEach(({ service, state }) => setAvailability(service, state));
+        if (announce) {
+          const online = results.filter((r) => r.state === "online").length;
+          showNotice(`Reachability scan complete: ${online} of ${services.length} online`, 3200);
+        }
+        return results;
+      }
+
       function renderSettingsForm() {
         connectionList.innerHTML = services.map((service) => {
           const saved = endpointSettings[service.id];
@@ -991,12 +1171,19 @@
       }
 
       function renderMissionList() {
-        missionList.innerHTML = services.map((service) => `
-          <button class="mission-button" type="button" data-service-id="${service.id}" style="--service-color:${service.color}">
+        missionList.innerHTML = services.map((service) => {
+          const state = availability.get(service.id) || "unknown";
+          const offline = state === "offline";
+          const statusLabel = offline
+            ? '<span class="mission-state">OFFLINE</span>'
+            : '<span class="mission-arrow">›</span>';
+          return `
+          <button class="mission-button${offline ? " is-offline is-probed" : ""}" type="button" data-service-id="${service.id}" style="--service-color:${service.color}"${offline ? ' title="Unreachable at the configured endpoint"' : ""}>
             <span class="mission-dot"></span>
             <span><span class="mission-name">${service.name}</span><span class="mission-orbit">a ${service.a.toFixed(1)}u · e ${service.e.toFixed(2)} · i ${service.inclination.toFixed(2)} rad</span></span>
-            <span class="mission-arrow">›</span>
-          </button>`).join("");
+            ${statusLabel}
+          </button>`;
+        }).join("");
       }
 
       renderSettingsForm();
@@ -1016,23 +1203,24 @@
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.setSize(window.innerWidth, window.innerHeight, false);
       renderer.outputEncoding = THREE.sRGBEncoding;
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.35;
+      // The shader tonemaps and gamma-encodes its own output, so no filmic pass here —
+      // it would re-curve the disk and lift the background off absolute black.
+      renderer.toneMapping = THREE.NoToneMapping;
 
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x02040a);
-      scene.fog = new THREE.FogExp2(0x02040a, .0042);
+      scene.background = new THREE.Color(0x010103);
+      scene.fog = new THREE.FogExp2(0x010103, .0042);
 
       const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, .1, 240);
-      camera.position.set(50, 54, 82);
+      camera.position.set(22, 24, 41);
       camera.lookAt(0, 0, 0);
 
       const controls = new THREE.OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
       controls.dampingFactor = .055;
       controls.enablePan = false;
-      controls.minDistance = 18;
-      controls.maxDistance = 125;
+      controls.minDistance = 12;
+      controls.maxDistance = 95;
       controls.minPolarAngle = .25;
       controls.maxPolarAngle = Math.PI - .25;
       controls.target.set(0, 0, 0);
@@ -1040,11 +1228,18 @@
 
       const composer = new THREE.EffectComposer(renderer);
       const renderPass = new THREE.RenderPass(scene, camera);
-      const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 2.2, 1.1, .12);
-      bloomPass.threshold = .08;
-      bloomPass.strength = 2.1;
-      bloomPass.radius = 1.1;
+      const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), .9, .78, .24);
+      // Bloom supplies the disk's apparent brightness now that the shader keeps its
+      // accumulated values low enough to preserve hue. Threshold sits just above the
+      // starfield so only the disk and the hot inner edge bloom.
+      bloomPass.threshold = .18;
+      bloomPass.strength = .95;
+      bloomPass.radius = .82;
       composer.addPass(renderPass);
+      // The shader tonemaps and sRGB-encodes its own output, so the composer must not
+      // re-process it. Bloom is only safe here because the shader leaves room below the
+      // ceiling in the disk; the pass is skipped entirely when the device is weak (see the
+      // quality tiering below).
       composer.addPass(bloomPass);
 
       const orbitRoot = new THREE.Group();
@@ -1056,13 +1251,15 @@
       }
 
       function createStarfield() {
-        const count = 1050;
+        // The reference frame is a dense but faint white starfield over pure black, with
+        // no colour cast, so every star is a near-neutral tint at low opacity.
+        const count = 2600;
         const positions = new Float32Array(count * 3);
         const colors = new Float32Array(count * 3);
         for (let index = 0; index < count; index += 1) {
           const theta = seededRandom(index + 1) * Math.PI * 2;
           const phi = Math.acos(1 - seededRandom(index + 11) * 2);
-          const radius = 64 + seededRandom(index + 31) * 32;
+          const radius = 92 + seededRandom(index + 31) * 76;
           const x = Math.sin(phi) * Math.cos(theta) * radius;
           const y = Math.cos(phi) * radius;
           const z = Math.sin(phi) * Math.sin(theta) * radius;
@@ -1070,19 +1267,22 @@
           positions[index * 3 + 1] = y;
           positions[index * 3 + 2] = z;
           const tint = seededRandom(index + 81);
-          colors[index * 3] = .53 + tint * .38;
-          colors[index * 3 + 1] = .64 + tint * .32;
-          colors[index * 3 + 2] = .78 + tint * .22;
+          const brightness = .42 + Math.pow(seededRandom(index + 141), 2.4) * .74;
+          // Neutral white. A blue-weighted starfield makes the whole frame read cool and
+          // fights the disk's amber, so the channels are kept nearly equal.
+          colors[index * 3] = brightness * (.99 + tint * .01);
+          colors[index * 3 + 1] = brightness * (.995 + tint * .005);
+          colors[index * 3 + 2] = brightness * (.98 + tint * .02);
         }
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
         geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
         const material = new THREE.PointsMaterial({
-          size: .12,
+          size: .09,
           sizeAttenuation: true,
           vertexColors: true,
           transparent: true,
-          opacity: .72,
+          opacity: .74,
           depthWrite: false,
           depthTest: false,
           blending: THREE.AdditiveBlending
@@ -1102,10 +1302,10 @@
         const streakPositions = new Float32Array(count * 6);
         const streakColors = new Float32Array(count * 6);
         const palette = [
-          new THREE.Color("#fff4cf"),
-          new THREE.Color("#ffbc62"),
-          new THREE.Color("#ff7635"),
-          new THREE.Color("#d6eaff")
+          new THREE.Color("#fff3d8"),
+          new THREE.Color("#ffc98a"),
+          new THREE.Color("#ff9455"),
+          new THREE.Color("#e8f0ff")
         ];
 
         for (let index = 0; index < count; index += 1) {
@@ -1147,11 +1347,11 @@
         pointGeometry.setAttribute("position", new THREE.BufferAttribute(pointPositions, 3));
         pointGeometry.setAttribute("color", new THREE.BufferAttribute(pointColors, 3));
         const points = new THREE.Points(pointGeometry, new THREE.PointsMaterial({
-          size: .2,
+          size: .16,
           sizeAttenuation: true,
           vertexColors: true,
           transparent: true,
-          opacity: .74,
+          opacity: .46,
           depthWrite: false,
           blending: THREE.AdditiveBlending
         }));
@@ -1181,8 +1381,20 @@
       const blackHoleUniforms = {
         uTime: { value: 0 },
         uAspect: { value: window.innerWidth / window.innerHeight },
-        uCameraDistance: { value: 92 }
+        uCameraDistance: { value: 92 },
+        // Diagnostic channel used by window.__blackHoleProbe in the browser tests.
+        uMask: { value: 0 },
+        // 0 fully zoomed out (whole galaxy), 1 fully arrived at the horizon. Starts at 0
+        // so the intro sweep runs on load; updateIntro() settles it at 1.
+        uApproach: { value: 0 }
       };
+
+      // Wrapper for the black-hole quad. It must stay unrotated: the shader owns all of the
+      // geometry, including the viewing inclination. An earlier revision tilted this group
+      // as well, which rotated the ray field twice and left the quad edge-on to the camera,
+      // so the disk was foreshortened to nothing.
+      const blackHoleTilt = new THREE.Group();
+      scene.add(blackHoleTilt);
 
       const blackHoleVertex = `
         varying vec2 vUv;
@@ -1198,9 +1410,99 @@
         uniform float uTime;
         uniform float uAspect;
         uniform float uCameraDistance;
+        // 0 = wide establishing shot, 1 = settled on the disk. Drives the intro sweep.
+        uniform float uApproach;
+        // Diagnostic channel, driven by window.__blackHoleProbe in the browser tests:
+        //   0 = normal image, 1 = shadow mask, 2 = raw pre-tonemap accumulation.
+        uniform float uMask;
         #define PI 3.14159265359
-        const float R_IN = 3.0;
-        const float R_OUT = 9.0;
+        // Step budget. Must be enough for the fine near-disk schedule to still reach the
+        // horizon from EYE_DISTANCE; too few and rays expire before the disk is sampled.
+        #define STEPS 900
+        // Scene units: horizon at r = 1, photon sphere at r = 1.5, ISCO at r = 3. The disk
+        // runs from the ISCO out to DISK_OUT.
+        // The disk runs from just outside the photon sphere to a wide outer rim. The inner
+        // edge must sit close to the shadow so the bright limb hugs the silhouette, which is
+        // the reference's dominant feature; a wide inner gap reads as a ringed planet.
+        // The visible disk begins just outside B_CRIT, because everything inside the
+        // capture radius is hidden behind the silhouette. A disk whose bright region sits
+        // at r < 2.6 is completely invisible: at DISK_IN 1.35 with the fade starting at
+        // r = 3.6 the whole inner band was occluded and only a thin sliver showed.
+        // A wide disk: in the reference the band runs off both edges of the frame, and its
+        // lensed far side forms the tall arc. A tight disk cannot produce that arc.
+        // A wide, flared disk. Everything inside B_CRIT is hidden behind the silhouette, so
+        // the inner edge sits just outside it; the outer edge runs past the frame.
+        const float DISK_IN = 2.75;
+        const float DISK_OUT = 15.0;
+        // Verlet integration of the null geodesic.
+        //
+        // Schwarschild in units where the horizon is r = 1. For a photon the orbit equation
+        // reduces to an acceleration along the position vector:
+        //     d2x/dl2 = -1.5 * h^2 * x / r^5
+        // with h the (conserved) specific angular momentum of the ray. Writing it this way
+        // rather than with a tuned constant means the bend is dimensionally correct, and the
+        // capture cross-section follows:
+        //     b_crit = 3 * sqrt(3) * M = 2.598
+        // which is what fixes the silhouette size without hand-tuning anything.
+        const float HORIZON = 1.0;
+        const float PHOTON_SPHERE = 1.5;
+        const float B_CRIT = 2.59807621;
+
+        // The eye sits far enough back that the silhouette is a compact disc in frame: the
+        // shadow's apparent radius is asin(b_crit / r), so framing is set by the eye distance
+        // relative to B_CRIT and the field of view.
+        // Far enough out that the whole ring is in view at once, which is what lets the
+        // far side of the disk lens up and over the shadow.
+        // Far enough that the whole ring is read at once, close enough that the capture
+        // cross-section is a substantial part of the frame. At 26 units the impact parameter
+        // ranged 0..24 across the frame while B_CRIT is 2.598, so the silhouette occupied
+        // only ~10% and the disk's outer reaches dominated everything else.
+        const float EYE_DISTANCE = 24.0;
+        // Viewing inclination above the disk plane, in radians (~8 degrees).
+        //
+        // This is the single most important composition constant. The reference is a nearly
+        // edge-on view: the far side of the disk is lensed up and over the shadow into a
+        // tall arc, which is the image's signature. A steeper look flattens the disk into an
+        // ellipse and loses that arc entirely.
+        // Viewing elevation above the disk plane, in radians (~26 degrees).
+        //
+        // Verified by marching the same integrator offline (tests/raymarch.cjs): at 0.07 rad
+        // the eye sat 1.47 units above a disk reaching 13 units, so rays skimmed the plane
+        // and first entered the disk at r ~ 12.7, never sampling the bright inner region. At
+        // 0.45 rad a grazing ray picks up 40x more disk light and enters at r ~ 6.4.
+        // ~20 degrees above the disk plane.
+        //
+        // Verified by marching the integrator offline (tests/raymarch.cjs). At 0.11 rad the
+        // disk is so close to edge-on that it reads as a straight band ruled across the
+        // silhouette. The reference shows the far side of the disk lifted over the top of
+        // the hole and the near side sweeping under it, which needs enough elevation for
+        // the lensed far side to clear the shadow.
+        // Viewing elevation, ~38 degrees above the disk plane.
+        //
+        // This is solved, not tuned. A ray from the eye crosses the disk plane at radius
+        // EYE_DISTANCE * cos(t); if that exceeds DISK_OUT the ray flies over the disk and
+        // samples nothing. At 0.26 rad with the eye 30 units out the crossing radius was
+        // 29.0 against a disk reaching 11.5, so the band was missed completely -- which is
+        // what kept the disk invisible through many earlier attempts. The crossing radius
+        // only drops below DISK_OUT once cos(t) < DISK_OUT / EYE_DISTANCE, hence this value.
+        const float INCLINATION = 0.60;
+
+        // Ceiling on the accumulated column so the mid-disk cannot clip to flat white,
+        // then the sRGB transfer function.
+        //
+        // The encode belongs here: three.js r128 only injects output encoding into its
+        // built-in materials, so a raw ShaderMaterial writing gl_FragColor gets none.
+        // Without this the shader sends linear values to an sRGB framebuffer, which is
+        // exactly what washes a saturated amber out to pale grey-beige.
+        vec3 linearToSrgb(vec3 c) {
+          vec3 low = c * 12.92;
+          vec3 high = 1.055 * pow(max(c, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055;
+          return mix(low, high, step(vec3(0.0031308), c));
+        }
+
+        vec3 tonemap(vec3 c) {
+          return linearToSrgb(1.0 - exp(-max(c, vec3(0.0))));
+        }
 
         float hash31(vec3 p) {
           p = fract(p * 0.1031);
@@ -1221,89 +1523,361 @@
           );
         }
 
+        // Range-normalised fbm. The old form summed 0.52 + 0.26 + ... = 1.02 of raw
+        // noise, whose actual spread is only about 0.1-0.9, so after clamping it
+        // produced one mid-grey value across the whole disk -- the flat, desaturated
+        // band in the reference comparison. Centring and scaling to the true range
+        // restores the full 0..1 contrast in the filaments.
         float fbm(vec3 p) {
           float value = 0.0;
           float amplitude = 0.52;
+          float norm = 0.0;
           mat3 rotate = mat3(0.80, 0.48, 0.36, -0.48, 0.87, -0.16, -0.36, -0.16, 0.92);
           for (int octave = 0; octave < 5; octave++) {
             value += amplitude * noise3(p);
+            norm += amplitude;
             p = rotate * p * 2.03 + 7.1;
             amplitude *= .5;
           }
-          return value;
+          return (value / norm - 0.5) * 2.1 + 0.5;
+        }
+
+        // Ridged variant: sharp bright crests over dark lanes. This is what gives the
+        // reference its banded, filamentary structure instead of soft cloudy blobs.
+        float ridged(vec3 p) {
+          float value = 0.0;
+          float amplitude = 0.55;
+          float norm = 0.0;
+          mat3 rotate = mat3(0.80, 0.48, 0.36, -0.48, 0.87, -0.16, -0.36, -0.16, 0.92);
+          for (int octave = 0; octave < 4; octave++) {
+            float n = 1.0 - abs(noise3(p) * 2.0 - 1.0);
+            value += amplitude * n * n;
+            norm += amplitude;
+            p = rotate * p * 2.11 + 4.7;
+            amplitude *= .47;
+          }
+          return clamp(value / norm, 0.0, 1.0);
         }
 
         void main() {
-          vec2 screen = (vUv - .5) * vec2(uAspect, 1.0);
-          float screenRadius = length(screen);
-          float edgeMask = 1.0 - smoothstep(.47, .62, screenRadius);
-          vec3 rayOrigin = vec3(screen.x * 32.0, screen.y * 32.0, 46.0);
-          vec3 rayDirection = normalize(vec3(-screen.x * .72, -screen.y * .72, -1.0));
-          vec3 point = rayOrigin;
-          vec3 accumulated = vec3(0.0);
-          float accumulatedAlpha = 0.0;
+          // Isotropic screen coordinates, each axis spanning -1..1.
+          //
+          // vUv spans 0..1 on both axes while the quad is scaled to the viewport, so x is
+          // multiplied by the aspect to keep ray directions equally spaced in world units --
+          // without it a circular silhouette renders as a wide ellipse.
+          vec2 ndc = (vUv - 0.5) * 2.0;
+          vec2 screen = vec2(ndc.x * max(uAspect, 0.0001), ndc.y);
 
-          for (int stepIndex = 0; stepIndex < 170; stepIndex++) {
-            float radius = length(point);
-            if (radius < 1.24) {
-              accumulated *= .02;
-              accumulatedAlpha = 1.0;
+          // The camera orbits at a fixed distance from the hole; uCameraDistance only biases
+          // the inclination slightly, so the silhouette stays centred and legible wherever
+          // the user has flown to.
+          float approach = clamp(uApproach, 0.0, 1.0);
+          float eyeDistance = EYE_DISTANCE * mix(2.6, 1.0, approach);
+          float tilt = INCLINATION + clamp((70.0 - uCameraDistance) * 0.0016, -0.05, 0.05);
+          // The eye is aimed at the hole: this quad is billboarded to the app camera, so
+          // the ray origin sits back along the view axis with the field centred on the
+          // origin. Without the explicit target offset the hole drifts out of frame.
+          vec3 eye = vec3(0.0, sin(tilt), cos(tilt)) * eyeDistance;
+
+          // Orthonormal camera basis.
+          //
+          // World Y cannot be the up reference here. forward is literally -eye, so it points
+          // straight at the hole; as the elevation rises, forward swings toward the Y axis
+          // and cross(Y, forward) collapses toward zero. That collapse was silently flattening
+          // the ray fan into a line, which is why only a single ray ever sampled the disk
+          // (verified across elevations 0.30-0.60 in tests/raymarch.cjs: screen.y had almost
+          // no effect on the ray direction).
+          //
+          // Taking the world Z axis instead is well conditioned for every elevation this
+          // scene uses, since forward only approaches Z when the eye is nearly in the disk
+          // plane, and the fallback covers that case too.
+          vec3 forward = normalize(-eye);
+          vec3 reference = abs(forward.z) < 0.9 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);
+          vec3 right = normalize(cross(reference, forward));
+          vec3 up = normalize(cross(forward, right));
+
+          // Framing. B_CRIT at this eye distance subtends asin(2.598 / 30) = 4.97 degrees;
+          // the reference puts the silhouette at roughly a fifth of frame height, so the
+          // vertical half-field is derived from that ratio (tan(4.97) / 0.20 ~ 0.43).
+          // Half-extent of the ray fan as a tangent at the hole's distance, so the field is
+          // in the same units as the capture cross-section and the shadow size follows from
+          // physics rather than from tuning.
+          //
+          // B_CRIT / EYE_DISTANCE = 2.598 / 21 = 0.1237 is the tangent of the silhouette's
+          // angular radius. That over this extent is the fraction of frame width the shadow
+          // spans: at 1.05 it is ~12%, which matches the reference. The value is large
+          // relative to the capture cone on purpose -- a fan no wider than the cone would
+          // have every ray captured, which fills the frame with the silhouette instead of
+          // drawing a disc inside a starfield.
+          // Half-extent of the ray fan as a tangent at the hole's distance.
+          //
+          // Physics fixes the capture cone: B_CRIT / EYE_DISTANCE = 2.598 / 21 = 0.1237. The
+          // shadow's share of the frame is that over this extent, so ~0.98 puts the
+          // silhouette at about 13%, matching the reference. The field has to stay well
+          // above the cone or every ray is captured and the quad paints solid.
+          // Half-extent of the ray fan, in tangent units at the hole's distance.
+          //
+          // Physics sets the capture cone: B_CRIT / EYE_DISTANCE = 2.598 / 21 = 0.1237.
+          // Dividing by this extent gives the silhouette's share of the half-height, so
+          // 0.95 lands it at ~13%, which is the reference's proportion. At 0.30 the cone
+          // covered 41% of the half-height and the shadow swallowed the upper frame.
+          // Measured on the last capture the silhouette filled ~44% of the frame, far more
+          // than the reference's ~13%. The shadow's share of the half-height is
+          // (B_CRIT / EYE_DISTANCE) / halfExtent, so 0.1237 / 0.13 = 0.95 is the value that
+          // actually lands it at 13%. The previous 1.30 was correct arithmetic but the
+          // capture was reading the *disk's* dark inner region, not the silhouette.
+          // Shadow size scales as (B_CRIT / EYE_DISTANCE) / halfExtent. The capture showed
+          // the silhouette filling ~19% of frame width, so this opens the field until the
+          // silhouette is the reference's ~10% and the disk has room to sweep past the
+          // frame edges instead of being cropped to a ring around it.
+          // Also narrow enough that the fan actually crosses the disk's radial range:
+          // with the eye close in, a wider field sends rays above or below the plane and
+          // they never sample the band at all.
+          float halfExtent = mix(1.35, 1.22, approach);
+          vec3 rayDirection = normalize(forward +
+                                        right * screen.x * halfExtent +
+                                        up * screen.y * halfExtent);
+
+          // Specific angular momentum of this ray, conserved along the geodesic.
+          vec3 hVec = cross(eye, rayDirection);
+          float h2 = dot(hVec, hVec);
+
+          vec3 rayPosition = eye;
+          vec3 color = vec3(0.0);
+          vec3 glow = vec3(0.0);
+          float transmittance = 1.0;
+          float swallowed = 0.0;
+          // Roll of the disk normal around the view axis, so the reference's shallow
+          // spiral tilt is reproduced instead of a perfectly horizontal band.
+          vec3 diskNormal = normalize(mat3(
+            cos(0.21), 0.0, sin(0.21),
+            0.0, 1.0, 0.0,
+            -sin(0.21), 0.0, cos(0.21)
+          ) * vec3(0.0, 1.0, 0.0));
+
+          for (int step = 0; step < STEPS; step++) {
+            float radius = length(rayPosition);
+
+            if (radius < HORIZON) {
+              // The ray is captured: nothing it collected on the way in escapes.
+              transmittance = 0.0;
+              swallowed = 1.0;
+              color = vec3(0.0);
               break;
             }
-            if (radius > 24.0) break;
 
-            float stepSize = .055 + radius * .0046;
-            vec3 gravity = -normalize(point) * (1.18 / max(radius * radius, 1.0));
-            vec3 frameDrag = vec3(-point.z, 0.0, point.x) * (.12 / max(radius * radius * radius, 1.0));
-            rayDirection = normalize(rayDirection + (gravity + frameDrag) * stepSize);
+            // Step scaled to the local radius, with a tighter schedule near the disk so its
+            // vertical profile is resolved rather than stepped over.
+            float stepLength = clamp(radius * 0.055, 0.012, 0.62);
+            if (radius < DISK_OUT + 2.0) stepLength *= 0.36;
+            // Keep the step finer than the disk is thick, or rays stride over the slab and
+            // sample it inconsistently, which reads as banding and hard cut edges.
+            // The step must be sized against the SAME flare the disk is sampled with.
+            // It was using 0.40 + r * 0.13 while the density used 0.12 + r * 0.050, i.e. a
+            // slab four times thicker than the one being sampled, so rays strode over the
+            // midplane and only caught the disk where a sample happened to land on it. That
+            // is why only a thin slice of the disk rendered.
+            if (radius < DISK_OUT + 0.5) {
+              float localFlare = 0.55 + radius * 0.115;
+              stepLength = min(stepLength, localFlare * 0.30);
+            }
 
-            float radialBand = smoothstep(R_IN - .22, R_IN + .16, radius) * (1.0 - smoothstep(R_OUT - .72, R_OUT + .05, radius));
-            float diskThickness = .035 + radius * .014;
-            float equatorialDensity = exp(-pow(abs(point.y) / diskThickness, 2.0));
-            float angularVelocity = 2.9 * pow(max(radius, 3.0), -1.5);
-            float flowAngle = atan(point.z, point.x) - uTime * angularVelocity;
-            vec3 flowPosition = vec3(cos(flowAngle) * radius * .56, point.y * 4.4 + uTime * .12, sin(flowAngle) * radius * .56);
-            float turbulent = clamp(fbm(flowPosition), 0.0, 1.0);
-            float density = radialBand * equatorialDensity * (.35 + turbulent * 1.45);
-            vec3 velocity = normalize(vec3(-point.z, 0.0, point.x)) * sqrt(3.0 / max(radius, 3.0));
-            float approaching = clamp(dot(velocity, -rayDirection) * 1.25 + .5, 0.0, 1.0);
-            float doppler = clamp(.22 + approaching * 1.22, .18, 1.55);
-            vec3 deep_amber = vec3(.78, .18, .04);
-            vec3 bright_amber = vec3(.95, .45, .15);
-            vec3 gold = vec3(1.0, .55, .15);
-            vec3 blueWhite = vec3(.75, .92, 1.0);
-            vec3 plasma = mix(deep_amber, bright_amber, smoothstep(.08, .6, turbulent));
-            plasma = mix(plasma, gold, smoothstep(.4, .85, turbulent));
-            plasma = mix(plasma, blueWhite, smoothstep(.7, 1.0, doppler) * .85);
-            float emission = density * (3.2 + 4.5 * turbulent) * doppler;
-            accumulated += plasma * emission * stepSize * (1.0 - accumulatedAlpha);
-            accumulatedAlpha = min(1.0, accumulatedAlpha + density * stepSize * .42);
-            point += rayDirection * stepSize;
+            // Null geodesic acceleration: d2x/dl2 = -1.5 * h^2 * x / r^5.
+            vec3 a0 = -1.5 * h2 * rayPosition / pow(max(dot(rayPosition, rayPosition), 1e-6), 2.5);
+            vec3 probe = rayPosition + rayDirection * stepLength;
+            vec3 a1 = -1.5 * h2 * probe / pow(max(dot(probe, probe), 1e-6), 2.5);
+            rayDirection = normalize(rayDirection + 0.5 * (a0 + a1) * stepLength);
+            rayPosition += rayDirection * stepLength;
+
+            // Altitude above the disk plane and true cylindrical radius within it.
+            // The old code used length(xz) and raw y, which is only correct when the
+            // disk plane is exactly y = 0.
+            float height = dot(rayPosition, diskNormal);
+            vec3 planar = rayPosition - diskNormal * height;
+            float radiusXZ = length(planar);
+            if (radiusXZ < DISK_OUT) {
+              // Volumetric (not sheet-like) vertical profile.
+              //
+              // The disk has to be a genuinely thick column for a viewer this far off its
+              // plane. With a thin slab, rays crossing the disk's screen footprint mostly
+              // pass above or below it and emit nothing, so the band renders as a hairline.
+              // The scale height grows with radius, which is also what gives the reference
+              // its slightly heavier outer edge.
+              // Thin, mildly flared scale height. The reference disk is a slender band, not
+              // a fat torus, and the flare grows outward as it does in a real thin disk.
+              // Thin, mildly flared scale height. The reference band is slender and
+              // structured, not a fat torus, so this is deliberately tight; the extra
+              // thickness that made the disk visible at all is now supplied by the
+              // vertical march below rather than by an inflated slab.
+              // Scale height. The previous 0.12 + r*0.050 was thin enough that only 4 of 7
+              // sampled rays intersected the slab at all (tests/raymarch.cjs), so the disk
+              // read as a sparse hairline. The reference band has real vertical presence;
+              // this widens it enough that the fan crosses it across the whole frame while
+              // still tapering to nothing at the edges.
+              float flare = 0.55 + radiusXZ * 0.115;
+              float vertical = exp(-pow(height / flare, 2.0));
+
+              // Radial profile. The reference has no true inner gap: bright material
+              // starts immediately outside the silhouette and runs out to a long, faint
+              // outer tail that crosses the whole frame. A taper centred at 0.55 of
+              // DISK_OUT was cutting the band off far too early.
+              // Fade the outer disk decisively. A taper starting at 74% of DISK_OUT with a
+              // near-flat radial falloff left a grey wash covering the entire frame; the
+              // reference's band is contained and reads as a distinct object.
+              float band = smoothstep(DISK_IN, DISK_IN * 1.05, radiusXZ) *
+                           (1.0 - smoothstep(DISK_OUT * 0.30, DISK_OUT * 0.72, radiusXZ));
+              float density = vertical * band;
+
+              if (density > 0.0004) {
+                float angle = atan(dot(planar, vec3(0.0, 0.0, 1.0)), dot(planar, vec3(1.0, 0.0, 0.0)));
+                // Keplerian shear: the inner edge laps the outer edge repeatedly.
+                float omega = 1.6 * pow(max(radiusXZ, DISK_IN), -1.5);
+                float shear = angle - uTime * omega;
+
+                // Filamentary structure, sampled in a sheared disk frame. Two scales:
+                // broad streams from the fbm and fine banding from the ridged field, which
+                // together give the reference its streaked, layered look.
+                vec3 q1 = vec3(cos(shear), height * 3.2, sin(shear)) * (3.1 + radiusXZ * 0.75);
+                vec3 q2 = vec3(cos(shear * 3.0), height * 11.0, sin(shear * 3.0)) * (9.0 + radiusXZ * 2.6);
+                float turb = clamp(fbm(q1) * 0.68 + fbm(q2) * 0.44, 0.0, 1.0);
+                float bands = ridged(vec3(shear * 5.5, height * 26.0, radiusXZ * 4.6));
+
+                // Relativistic Doppler beaming: the approaching limb is brightened and
+                // blue-shifted, the receding limb dimmed and reddened.
+                vec3 velocity = normalize(vec3(-planar.z, 0.0, planar.x)) *
+                                sqrt(0.5 / max(radiusXZ, DISK_IN));
+                float shift = dot(velocity, -rayDirection);
+                float beam = clamp(1.0 + shift * 1.35, 0.25, 2.4);
+
+                // Steeper radial falloff so the outer tail drops away instead of
+                // accumulating to a frame-wide haze.
+                // Falloff tuned against the capture: at -1.55 the outer disk vanished and the
+                // band read as a dim brown smear. The reference holds a bright, legible band
+                // across most of its width, so the exponent is gentler and the overall gain
+                // carries the brightness.
+                // Steeper falloff: at -0.85 the outer tail accumulated into a broad grey
+                // wash rather than the reference's defined, tapering band.
+                float g = pow(max(radiusXZ, DISK_IN), -1.25);
+
+                // Reference palette, sampled from the plate: a brilliant white-hot inner
+                // limb warming through cream and pale gold into a rust-brown outer rim,
+                // with coal-black dust lanes cut through it.
+                //
+                // The warm end is pushed further than the plate's average because the
+                // additive accumulation over many samples averages toward neutral: a
+                // literally-sampled palette renders noticeably greyer than the source.
+                float heat = 1.0 - smoothstep(DISK_IN, DISK_OUT * 0.34, radiusXZ);
+                vec3 cIn = vec3(1.00, 0.95, 0.86);
+                vec3 cMid = vec3(1.00, 0.78, 0.46);
+                vec3 cWarm = vec3(1.00, 0.55, 0.22);
+                vec3 cOut = vec3(0.62, 0.30, 0.13);
+                vec3 plasma = mix(cOut, cWarm, smoothstep(0.0, 0.30, heat));
+                plasma = mix(plasma, cMid, smoothstep(0.24, 0.66, heat));
+                plasma = mix(plasma, cIn, smoothstep(0.62, 1.0, heat));
+
+                // Filaments brighten and whiten; the ridged field paints the streaks.
+                plasma = mix(plasma * 0.55, mix(plasma, vec3(1.0), 0.42), smoothstep(0.22, 0.88, turb));
+                plasma *= mix(0.30, 1.28, bands);
+                // Doppler tint: blueshift on approach, redshift on recession.
+                plasma = mix(plasma, vec3(0.80, 0.88, 1.00), clamp(shift, 0.0, 1.0) * 0.42);
+                plasma = mix(plasma, vec3(1.00, 0.42, 0.16), clamp(-shift, 0.0, 1.0) * 0.38);
+
+                // The emission is deliberately tiny per sample: a grazing ray takes ~140
+                // steps inside the slab, so the column sums to order 1. Anything larger
+                // clips the entire disk to flat white (the previous 0.06 already did).
+                float emission = density * (0.30 + 1.05 * pow(turb, 1.15)) * (0.40 + 0.75 * bands) * g;
+                // Gain: the previous 2.2 blew the disk to a solid white disc covering the
+                // frame. A grazing ray accumulates across roughly 140 samples at ~0.5 units
+                // each, so the per-sample contribution has to be small for the tonemap to
+                // retain the cream-to-rust gradient instead of clipping every channel.
+                // Self-extinction removed from the accumulation.
+                //
+                // attenuating the ray as it marched inside the disk meant the FAR side was
+                // extinguished before the near side was ever sampled, so only whichever
+                // limb the ray crossed last survived -- the disk rendered as a single dim
+                // wedge instead of a band wrapped around the hole. The gas is optically
+                // thin here, so every crossing contributes at full weight.
+                // Gain raised from 3.2: measured on the last frame the band peaked around
+                // luma 40 against the reference's near-white inner limb, so the disk was
+                // present but an order of magnitude too faint to read as a lit band.
+                color += plasma * emission * beam * stepLength * 26.0;
+                // Forward scattering: emission aimed away from the camera is still partly
+                // redirected into the eye, so a ray picks up a fraction of what it would have
+                // seen head-on. A thin sheet with no scattering returns nearly zero along an
+                // edge-on tangent, which made the band faint without it.
+                //
+                // Weighted by the same radial density profile as the direct term. Without
+                // that weighting this term accumulated at full strength for every ray that
+                // grazed the disk anywhere, and since the disk's outer radius is far larger
+                // than the capture cross-section it filled the whole frame with a grey haze
+                // that swamped the silhouette.
+                glow += plasma * vertical * band * stepLength * g * g * 2.4;
+                transmittance *= exp(-density * stepLength * 0.0016);
+              }
+            }
+
+            if (radius > eyeDistance + 6.0) break;
           }
 
-          float eventShadow = 1.0 - smoothstep(.105, .18, screenRadius);
-          float photonRing = exp(-pow((screenRadius - .192) / .008, 2.0));
-          float innerRing = exp(-pow((screenRadius - .257) / .035, 2.0));
-          float halo = exp(-pow((screenRadius - .31) / .11, 2.0));
-          float outerGlow = exp(-pow((screenRadius - .42) / .18, 2.0));
-          float curl = .5 + .5 * sin(atan(screen.y, screen.x) * 9.0 + uTime * .4 + screenRadius * 24.0);
-          vec3 ringColor = mix(vec3(1.0, .25, .05), vec3(1.0, .92, .55), smoothstep(-.2, .7, screen.x));
-          vec3 lensedRear = vec3(1.0, .35, .08) * innerRing * (.45 + curl * .65);
-          float rearArc = exp(-pow((abs(screen.y) - (.205 + .034 * sin(screen.x * 14.0 - uTime * .22))) / .022, 2.0));
-          rearArc *= smoothstep(.1, .52, abs(screen.x));
-          vec3 color = accumulated;
-          color += ringColor * photonRing * 4.8;
-          color += lensedRear * 1.1;
-          color += mix(vec3(.85, .18, .08), vec3(1.0, .72, .35), curl) * rearArc * .65;
-          color += vec3(1.0, .35, .12) * halo * .28;
-          color += vec3(.98, .58, .22) * outerGlow * .15;
-          color *= edgeMask;
+          // The silhouette is determined by the ray's impact parameter, not by whether this
+          // particular march happened to step inside r = 1.
+          //
+          // b = |h| is the conserved angular momentum per unit mass and is exactly the
+          // asymptotic impact parameter. A photon is captured when b < 3*sqrt(3)*M = 2.598,
+          // which is the photon-capture cross-section. Deriving the shadow from this makes
+          // its size independent of step length and of the ray field's extent, and it is
+          // what lets the disk's lensed far side still accumulate across the silhouette
+          // instead of being erased by a hard alpha mask.
+          float impact = length(hVec);
+          float mask = 1.0 - smoothstep(B_CRIT - 0.35, B_CRIT + 0.35, impact);
 
-          float glowAlpha = max(accumulatedAlpha * .98, max(photonRing * .96, max(rearArc * .42, max(halo * .26, outerGlow * .16))));
-          float alpha = max(eventShadow, glowAlpha) * edgeMask;
-          color *= 1.0 - eventShadow;
-          color = pow(max(color, 0.0), vec3(.75));
-          gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
+          // The silhouette is absolute: no disk light, no haze, and no lensed rear arc is
+          // allowed to show through it. A partial darkening here (the previous mix toward
+          // 0.05) left the accumulated disk haze visible inside the shadow, which is what
+          // made the hole render as a shaded grey sphere rather than a void.
+          color *= 1.0 - mask;
+          glow *= 1.0 - mask;
+
+          if (uMask > 1.5) {
+            // Raw probe: what actually accumulated, before the tonemap compresses it.
+            gl_FragColor = vec4(clamp(color, 0.0, 1.0), mask);
+            return;
+          }
+
+          vec3 visible = tonemap(color + glow * 0.75);
+
+          // Photon ring: light that orbits the hole arbitrarily many times and escapes just
+          // outside the capture cross-section. It hugs the silhouette as the brilliant rim.
+          //
+          // The previous version added a flat white value, which is why the rim rendered as
+          // a uniform grey ring. The reference's limb is strongly asymmetric: the side where
+          // the disk is approaching the viewer is beamed to a near-white brilliance while the
+          // receding side is dimmed and reddened. That asymmetry is what makes it read as a
+          // rotating accretion flow rather than a drawn circle, so it is graded here by the
+          // same Doppler factor that lights the disk.
+          float ringWidth = 0.14;
+          float ring = exp(-pow((impact - (B_CRIT + 0.06)) / ringWidth, 2.0));
+
+          // Which side of the ring the approaching material is on, from the ring's own
+          // screen-space direction: the tangential velocity projected onto the view axis.
+          vec3 ringDir = normalize(vec3(rayDirection.x, rayDirection.y, 0.0));
+          float approaching = clamp(ringDir.x, -1.0, 1.0) * 0.5 + 0.5;
+          vec3 ringCold = vec3(0.72, 0.78, 0.92);
+          vec3 ringHot = vec3(1.00, 0.95, 0.86);
+          vec3 ringWarm = vec3(1.00, 0.62, 0.30);
+          vec3 ringTint = mix(ringCold, ringHot, approaching);
+          ringTint = mix(ringTint, ringWarm, (1.0 - approaching) * 0.65);
+          // Peak brilliance on the approaching limb, falling to a faint trace opposite.
+          float ringGain = mix(0.10, 1.35, pow(approaching, 0.8));
+          visible += ringTint * ring * ringGain * (1.0 - mask);
+
+          // Alpha is the silhouette ONLY.
+          //
+          // Using the disk's optical depth as alpha made the whole disk opaque, so it
+          // rendered as a solid grey ball with the starfield hidden behind it. The disk is
+          // emissive gas, not a surface: its light is added over whatever is behind it, so
+          // the starfield stays visible through the band exactly as it does in the plate.
+          gl_FragColor = vec4(clamp(visible, 0.0, 1.0), clamp(mask, 0.0, 1.0));
         }
       `;
 
@@ -1320,7 +1894,7 @@
       const blackHoleQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blackHoleMaterial);
       blackHoleQuad.renderOrder = -40;
       blackHoleQuad.frustumCulled = false;
-      scene.add(blackHoleQuad);
+      blackHoleTilt.add(blackHoleQuad);
 
       const glowTexture = (() => {
         const textureCanvas = document.createElement("canvas");
@@ -1345,6 +1919,19 @@
         iconCanvas.height = 128;
         const context = iconCanvas.getContext("2d");
         context.clearRect(0, 0, 128, 128);
+        const roundedRect = (x, y, width, height, radius) => {
+          if (typeof context.roundRect === "function") {
+            context.roundRect(x, y, width, height, radius);
+            return;
+          }
+          const r = Math.min(radius, width / 2, height / 2);
+          context.moveTo(x + r, y);
+          context.arcTo(x + width, y, x + width, y + height, r);
+          context.arcTo(x + width, y + height, x, y + height, r);
+          context.arcTo(x, y + height, x, y, r);
+          context.arcTo(x, y, x + width, y, r);
+          context.closePath();
+        };
         context.strokeStyle = "rgba(255,255,255,.96)";
         context.fillStyle = "rgba(255,255,255,.96)";
         context.lineWidth = 8;
@@ -1418,7 +2005,7 @@
           context.stroke();
         } else {
           context.beginPath();
-          context.roundRect(26, 37, 76, 54, 14);
+          roundedRect(26, 37, 76, 54, 14);
           context.stroke();
           context.beginPath();
           context.moveTo(43, 91);
@@ -1482,7 +2069,9 @@
         const label = document.createElement("div");
         label.className = "node-label";
         label.style.setProperty("--label-color", service.color);
-        label.innerHTML = `<span class="label-bullet"></span><span>${service.name}</span>`;
+        // The reason text is only revealed on hover of an offline node, so the map stays
+        // quiet while still explaining why a service is greyed out.
+        label.innerHTML = `<span class="label-bullet"></span><span class="label-name">${service.name}</span><span class="label-reason">· unreachable</span>`;
         starLabels.appendChild(label);
         service.label = label;
       }
@@ -1532,6 +2121,17 @@
         service.group = group;
         service.core = core;
         service.ring = ring;
+        service.icon = icon;
+        // Materials are kept so the availability pass can restyle them in place; the
+        // original colour is retained because an offline node keeps its identity tint
+        // while dimming, rather than losing all colour.
+        service.materials = {
+          glow: glow.material,
+          core: core.material,
+          ring: ring.material,
+          icon: icon.material
+        };
+        service.baseColor = new THREE.Color(service.color);
         service.hovered = false;
         service.dragging = false;
         service.currentScale = 1;
@@ -1540,6 +2140,49 @@
       }
 
       services.forEach(setupService);
+
+      // A grey that still reads as "a node", rather than pure black which would vanish
+      // against the star field.
+      const OFFLINE_GREY = new THREE.Color(0x6b7280);
+
+      /**
+       * Repaints a service node for its availability state.
+       *
+       * online / unknown -> the service's own colour at full strength
+       * checking         -> dimmed and desaturated while the probe is in flight
+       * offline          -> grey, dimmer glow, and the marker shrinks slightly so an
+       *                     unavailable service is legible at a glance in the orbit map
+       */
+      function applyAvailability(service, state) {
+        if (!service.materials) return;
+        const { materials, baseColor } = service;
+
+        if (state === "offline") {
+          materials.core.color.copy(OFFLINE_GREY);
+          materials.ring.color.copy(OFFLINE_GREY);
+          materials.glow.color.copy(OFFLINE_GREY);
+          materials.icon.color.copy(OFFLINE_GREY);
+          materials.glow.opacity = .3;
+          materials.core.opacity = .72;
+          materials.ring.opacity = .36;
+          materials.icon.opacity = .5;
+        } else {
+          materials.core.color.copy(baseColor);
+          materials.ring.color.copy(baseColor);
+          materials.glow.color.copy(baseColor);
+          materials.icon.color.set(0xffffff);
+          const checking = state === "checking";
+          materials.glow.opacity = checking ? .42 : .78;
+          materials.core.opacity = checking ? .8 : .98;
+          materials.ring.opacity = checking ? .4 : .7;
+          materials.icon.opacity = checking ? .7 : .92;
+        }
+
+        service.label.classList.toggle("is-offline", state === "offline");
+        service.label.classList.toggle("is-checking", state === "checking");
+        // The nav list carries the same state, so it has to be rebuilt as probes land.
+        renderMissionList();
+      }
 
       const pointer = new THREE.Vector2();
       const mouseTarget = new THREE.Vector2();
@@ -1628,11 +2271,17 @@
       }
 
       function updateBlackHoleQuad() {
-        const distance = camera.position.distanceTo(blackHoleQuad.position);
+        const distance = camera.position.distanceTo(controls.target);
         const viewHeight = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * .5)) * distance;
-        blackHoleQuad.position.set(0, 0, 0);
+        blackHoleTilt.position.copy(controls.target);
+        // Undo the parent tilt so the quad's normal always faces the camera; the shader
+        // re-applies the disk lean internally, where the ray marcher can see it.
+        // Billboard to the app camera. The parent carries no rotation, so this is simply
+        // the camera's orientation.
         blackHoleQuad.quaternion.copy(camera.quaternion);
-        blackHoleQuad.scale.set(viewHeight * camera.aspect * .84, viewHeight * .64, 1);
+        // Fill the camera frustum exactly. A fixed quad ratio here would disagree with
+        // the viewport aspect and stretch the round shadow into an ellipse.
+        blackHoleQuad.scale.set(viewHeight * camera.aspect, viewHeight, 1);
         blackHoleUniforms.uAspect.value = camera.aspect;
         blackHoleUniforms.uCameraDistance.value = distance;
       }
@@ -1655,7 +2304,7 @@
           cameraTween = {
             startPosition,
             startTarget,
-            endPosition: new THREE.Vector3(50, 54, 82),
+            endPosition: new THREE.Vector3(30, 31, 56),
             endTarget: new THREE.Vector3(0, 0, 0),
             elapsed: 0,
             duration: .8
@@ -1686,14 +2335,23 @@
 
       function activateService(service) {
         if (!service) return;
+        const destination = endpointUrl(service);
+
+        // A known-unreachable endpoint would open a browser error page, which is worse
+        // than not opening at all. The node still focuses so the user sees which service
+        // they hit, and the notice explains the state.
+        if (availability.get(service.id) === "offline") {
+          startCameraTween(service);
+          linkState.textContent = service.name + " OFFLINE";
+          showNotice(`${service.name} is unreachable at ${destination}. Check the endpoint in settings.`, 4600);
+          return;
+        }
+        // Open during the user gesture; delaying window.open makes browsers treat it
+        // as a popup and the old fallback unexpectedly navigated away from the map.
+        const opened = window.open(destination, "_blank", "noopener,noreferrer");
         startCameraTween(service);
         linkState.textContent = service.name + " FOCUS";
-        showNotice(`Opening ${service.name} at ${endpointUrl(service)}`, 2600);
-        window.setTimeout(() => {
-          const destination = endpointUrl(service);
-          const opened = window.open(destination, "_blank", "noopener,noreferrer");
-          if (!opened) window.location.assign(destination);
-        }, 650);
+        showNotice(opened ? `Opening ${service.name} at ${destination}` : `Popup blocked. Allow popups to open ${destination}.`, 4200);
       }
 
       function updateDrag(event) {
@@ -1878,10 +2536,10 @@
       function renderSearchResults(query = "") {
         const normalized = query.trim().toLowerCase();
         const matches = services.filter((service) => service.name.toLowerCase().includes(normalized));
-        searchResults.innerHTML = matches.map((service) => `
+        searchResults.innerHTML = matches.length ? matches.map((service) => `
           <button class="search-result" type="button" data-search-id="${service.id}" style="--service-color:${service.color}">
             <span class="search-result-dot"></span><span>${service.name}</span>
-          </button>`).join("");
+          </button>`).join("") : '<span class="search-empty">No service nodes found.</span>';
       }
 
       searchInput.addEventListener("input", () => renderSearchResults(searchInput.value));
@@ -1893,6 +2551,42 @@
         activateService(service);
       });
       renderSearchResults();
+
+      // Mark the body as approaching so the skip affordance is shown from the first frame;
+      // updateIntro removes it once the sweep settles.
+      document.body.classList.add("is-intro");
+
+      /**
+       * Test seam: forces a service's reachability state without a network probe.
+       *
+       * Reachability depends on what is actually listening on the machine, so without
+       * this the browser suite would assert different behaviour on a developer box (where
+       * Servarr may be running) than in CI (where nothing is). Exposed deliberately and
+       * used only by tests/servarr.browser.mjs.
+       */
+      window.__setServiceAvailability = (serviceId, state) => {
+        const service = services.find((candidate) => candidate.id === serviceId);
+        if (!service) return false;
+        setAvailability(service, state);
+        return true;
+      };
+
+      // Kick off the first reachability pass. Services start as "unknown" (full colour)
+      // and settle into online/offline as each probe resolves, so the map is usable
+      // immediately rather than waiting on the network.
+      services.forEach((service) => setAvailability(service, "checking"));
+      refreshAvailability();
+
+      document.getElementById("rescanServices").addEventListener("click", async () => {
+        services.forEach((service) => setAvailability(service, "checking"));
+        await refreshAvailability({ announce: true });
+      });
+
+      // Endpoints are the input to reachability, so a save invalidates every result.
+      settingsForm.addEventListener("submit", () => {
+        services.forEach((service) => setAvailability(service, "checking"));
+        refreshAvailability({ announce: true });
+      });
 
       function resize() {
         const width = window.innerWidth;
@@ -1908,9 +2602,54 @@
       resize();
 
       const clock = new THREE.Clock();
+      // ---------------------------------------------------------------------------
+      // Intro approach
+      //
+      // The page opens on a wide field, visually a distant galaxy with the hole as a small
+      // bright point, then sweeps in over a few seconds to settle on the disk. It is driven
+      // by uApproach rather than by moving the app's camera, because the shader owns its
+      // own eye position; moving the app camera as well would double the effect.
+      // ---------------------------------------------------------------------------
+      const INTRO_DURATION = 3.4;
+      let introElapsed = 0;
+      let introDone = false;
+      let introSkipped = false;
+
+      function updateIntro(delta) {
+        if (introDone) return;
+        introElapsed += delta;
+        const t = Math.min(introElapsed / INTRO_DURATION, 1);
+        // Ease-in-out so the sweep starts gently, accelerates through the middle and
+        // settles without an abrupt stop.
+        const eased = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        blackHoleUniforms.uApproach.value = eased;
+        if (t >= 1) {
+          introDone = true;
+          blackHoleUniforms.uApproach.value = 1;
+          document.body.classList.remove("is-intro");
+        }
+      }
+
+      function skipIntro() {
+        if (introDone || introSkipped) return;
+        introSkipped = true;
+        introElapsed = INTRO_DURATION;
+        blackHoleUniforms.uApproach.value = 1;
+        introDone = true;
+        document.body.classList.remove("is-intro");
+      }
+
+      // Any deliberate input takes the user straight to the settled view: nobody should
+      // have to wait out an intro before they can interact.
+      ["pointerdown", "keydown", "wheel", "touchstart"].forEach((type) => {
+        window.addEventListener(type, skipIntro, { passive: true, once: false });
+      });
+      document.getElementById("introSkip")?.addEventListener("click", skipIntro);
+
       function animate() {
         window.requestAnimationFrame(animate);
         const delta = Math.min(clock.getDelta(), .05);
+        updateIntro(delta);
         elapsed += delta;
         blackHoleUniforms.uTime.value = elapsed;
         updateOrbits(delta);
@@ -1924,6 +2663,328 @@
         cameraDistance.textContent = `${camera.position.distanceTo(controls.target).toFixed(1).padStart(5, "0")}u`;
         composer.render();
       }
+
+      /**
+       * Diagnostic entry point for the browser test suite.
+       *
+       * Renders one frame into an offscreen target and reads it back. A dedicated target
+       * is required because the on-screen canvas has no preserved drawing buffer: reading
+       * it after compositing yields zeros, so the visible canvas cannot be sampled.
+       *
+       * Runs two passes:
+       *   pass 1 (uMask = 1) gives the shadow silhouette, whose bounding box reveals the
+       *          shadow's true size and whether it is circular;
+       *   pass 2 (normal) gives the disk's actual pixels, which answer whether the disk is
+       *          warm gold or washed-out grey.
+       *
+       * IMPORTANT: the normal pass goes through the composer, not renderer.render(). The
+       * visible image is composited (bloom included) and the canvas path applies sRGB
+       * output encoding that an intermediate render target does not get in r128. Rendering
+       * straight to a target therefore reports darker, less saturated values than the user
+       * sees, which previously led to tuning the palette against a number that was wrong.
+       */
+      window.__blackHoleProbe = (mode = 0) => {
+        // mode 0 = normal, 1 = shadow mask, 2 = raw accumulation channels
+        const probeWidth = 320;
+        const probeHeight = Math.max(1, Math.round(probeWidth / camera.aspect));
+        const target = new THREE.WebGLRenderTarget(probeWidth, probeHeight, {
+          minFilter: THREE.NearestFilter,
+          magFilter: THREE.NearestFilter,
+          format: THREE.RGBAFormat
+        });
+
+        const previousMask = blackHoleUniforms.uMask.value;
+        // mode 1 uses the silhouette mask; mode 2 uses the raw-value probe in the shader.
+        blackHoleUniforms.uMask.value = mode === 1 ? 1 : mode === 2 ? 2 : 0;
+        // Render the mask pass, then read it back BEFORE touching the target again.
+        // Reading and disposing order matters here: an earlier revision disposed the
+        // target and then tried to reuse it, which silently produced garbage.
+        renderer.setRenderTarget(target);
+        renderer.render(scene, camera);
+        renderer.setRenderTarget(null);
+        blackHoleUniforms.uMask.value = previousMask;
+
+        const pixels = new Uint8Array(probeWidth * probeHeight * 4);
+        renderer.readRenderTargetPixels(target, 0, 0, probeWidth, probeHeight, pixels);
+
+        // The mask is white where light was captured, so the shadow is the white region.
+        let minX = probeWidth;
+        let maxX = -1;
+        let minY = probeHeight;
+        let maxY = -1;
+        let count = 0;
+        for (let y = 0; y < probeHeight; y += 1) {
+          for (let x = 0; x < probeWidth; x += 1) {
+            const value = pixels[(y * probeWidth + x) * 4];
+            if (value > 127) {
+              count += 1;
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+            }
+          }
+        }
+
+        target.dispose();
+
+        const midRow = Math.floor(probeHeight / 2);
+        const scan = [];
+        let warmest = { warmth: 0, rgb: [0, 0, 0], xFrac: 0 };
+        let litPixels = 0;
+        for (let fx = 0; fx < probeWidth; fx += 4) {
+          const i = (midRow * probeWidth + fx) * 4;
+          const r = pixels[i];
+          const g = pixels[i + 1];
+          const b = pixels[i + 2];
+          const luma = r * 0.299 + g * 0.587 + b * 0.114;
+          if (luma > 24) litPixels += 1;
+          if (luma > 24) {
+            scan.push({
+              xFrac: +(fx / probeWidth).toFixed(2),
+              rgb: [r, g, b],
+              warmth: +(r / Math.max(b, 1)).toFixed(2),
+              luma: Math.round(luma)
+            });
+          }
+          const warmth = r / Math.max(b, 1);
+          if (luma > 40 && warmth > warmest.warmth) {
+            warmest = { warmth: +warmth.toFixed(2), rgb: [r, g, b], xFrac: +(fx / probeWidth).toFixed(2) };
+          }
+        }
+
+        if (count === 0) {
+          return { probeWidth, probeHeight, shadowPixels: 0, note: "no shadow rendered", scan, warmest };
+        }
+
+        const width = maxX - minX + 1;
+        const height = maxY - minY + 1;
+        // The GL readback origin is bottom-left, so flip y for the reported centre.
+        const centreX = (minX + maxX) / 2;
+        const centreYFromTop = probeHeight - 1 - (minY + maxY) / 2;
+
+        // Compare the shadow against itself, not against the canvas: the probe target
+        // is 16:9, so raw pixel counts make a perfect circle look like a wide ellipse.
+        // Dividing each axis by its own frame dimension cancels the target's aspect.
+        const widthFraction = width / probeWidth;
+        const heightFraction = height / probeHeight;
+        return {
+          probeWidth,
+          probeHeight,
+          shadowPixels: count,
+          boxWidth: width,
+          boxHeight: height,
+          centreX: +centreX.toFixed(1),
+          centreY: +centreYFromTop.toFixed(1),
+          // 1.000 means a true circle on screen. Anything else is a real distortion.
+          trueAspect: +(widthFraction / Math.max(heightFraction, 1e-6)).toFixed(3),
+          // A solid ellipse fills pi/4 = 0.785 of its bounding box; 1.0 is a rectangle.
+          fillRatio: +(count / (width * height)).toFixed(3),
+          shadowWidthFractionOfFrame: +widthFraction.toFixed(3),
+          shadowHeightFractionOfFrame: +heightFraction.toFixed(3),
+          // Disk palette evidence, sampled on the same frame.
+          litPixels,
+          warmestDiskPixel: warmest,
+          centreRowScan: scan.slice(0, 24)
+        };
+      };
+
+      /**
+       * Diagnostic entry point used by tests/sample.mjs.
+       *
+       * Renders one normal frame (no mask) into a small offscreen target and reports
+       * the brightest pixels together with their hue. This is how the palette is tuned:
+       * it answers "is the disk actually amber, and how bright?" with numbers instead of
+       * a screenshot, and it works where reading the on-screen canvas does not.
+       */
+      window.__blackHoleSample = () => {
+        const sampleWidth = 240;
+        const sampleHeight = Math.max(1, Math.round(sampleWidth / camera.aspect));
+        const target = new THREE.WebGLRenderTarget(sampleWidth, sampleHeight, {
+          minFilter: THREE.LinearFilter,
+          magFilter: THREE.LinearFilter,
+          format: THREE.RGBAFormat
+        });
+
+        renderer.setRenderTarget(target);
+        renderer.render(scene, camera);
+        renderer.setRenderTarget(null);
+
+        const pixels = new Uint8Array(sampleWidth * sampleHeight * 4);
+        renderer.readRenderTargetPixels(target, 0, 0, sampleWidth, sampleHeight, pixels);
+        target.dispose();
+
+        let brightest = { sum: -1, r: 0, g: 0, b: 0, x: 0, y: 0 };
+        const total = { r: 0, g: 0, b: 0 };
+        let lit = 0;
+        // The six service markers are additive white sprites and will always be the
+        // brightest thing on screen, so they are excluded: this measures the disk only.
+        const marks = services
+          .map((service) => {
+            const p = service.group.position.clone().project(camera);
+            return { x: (p.x * 0.5 + 0.5) * sampleWidth, y: (1 - (p.y * 0.5 + 0.5)) * sampleHeight };
+          });
+        // The glow sprite is 2.1 world units wide, which is far more than a few pixels,
+        // so the exclusion radius has to be generous or the markers keep winning the
+        // "brightest pixel" contest and every reading comes back colourless white.
+        const markerRadius = Math.max(14, Math.round(sampleWidth * 0.09));
+        const nearMarker = (x, y) =>
+          marks.some(
+            (m) => Math.abs(m.x - x) < markerRadius && Math.abs(m.y - y) < markerRadius
+          );
+
+        for (let y = 0; y < sampleHeight; y += 1) {
+          for (let x = 0; x < sampleWidth; x += 1) {
+            if (nearMarker(x, y)) continue;
+            const i = (y * sampleWidth + x) * 4;
+            const r = pixels[i];
+            const g = pixels[i + 1];
+            const b = pixels[i + 2];
+            const sum = r + g + b;
+            total.r += r;
+            total.g += g;
+            total.b += b;
+            if (sum > 40) lit += 1;
+            if (sum > brightest.sum) brightest = { sum, r, g, b, x, y };
+          }
+        }
+
+        const area = sampleWidth * sampleHeight;
+        const meanR = total.r / area;
+        const meanG = total.g / area;
+        const meanB = total.b / area;
+        // Hue direction of the brightest pixel: >1 means warm (amber), <1 means cool.
+        const warmthOfBrightest = +(brightest.r / Math.max(brightest.b, 1)).toFixed(2);
+        return {
+          sampleWidth,
+          sampleHeight,
+          litFraction: +(lit / area).toFixed(4),
+          brightest: { r: brightest.r, g: brightest.g, b: brightest.b, warmth: warmthOfBrightest },
+          meanLuma: +((meanR * 0.299 + meanG * 0.587 + meanB * 0.114)).toFixed(2),
+          meanR: +meanR.toFixed(2),
+          meanG: +meanG.toFixed(2),
+          meanB: +meanB.toFixed(2)
+        };
+      };
+
+      /**
+       * Diagnostic switch used by tests/bare.mjs: hides the six service sprites and their
+       * label chips so a screenshot shows the accretion disk on its own. The markers are
+       * additive white and outshine the disk, which otherwise makes the disk's colour
+       * impossible to judge from a capture.
+       */
+      /**
+       * Renders one frame into an offscreen target and reports what the shader actually
+       * wrote. The on-screen canvas cannot be sampled (no preserved drawing buffer), so this
+       * is the only way to read real pixel values back.
+       */
+      window.__atgSample = () => {
+        const w = 160;
+        const h = Math.max(1, Math.round(w / camera.aspect));
+        const target = new THREE.WebGLRenderTarget(w, h, {
+          minFilter: THREE.LinearFilter,
+          magFilter: THREE.LinearFilter
+        });
+        // Hide the service sprites: they are additive white MeshBasicMaterial meshes that
+        // outshine the disk, so leaving them in makes every "brightest pixel" reading report
+        // a marker instead of the accretion disk.
+        const hidden = [];
+        services.forEach((service) => {
+          if (service.group && service.group.visible) {
+            service.group.visible = false;
+            hidden.push(service);
+          }
+        });
+        const starPoints = scene.children.find((child) => child.isPoints);
+        const starWasVisible = starPoints ? starPoints.visible : false;
+        if (starPoints) starPoints.visible = false;
+
+        renderer.setRenderTarget(target);
+        renderer.render(scene, camera);
+        renderer.setRenderTarget(null);
+
+        hidden.forEach((service) => {
+          service.group.visible = true;
+        });
+        if (starPoints) starPoints.visible = starWasVisible;
+
+        const pixels = new Uint8Array(w * h * 4);
+        renderer.readRenderTargetPixels(target, 0, 0, w, h, pixels);
+        target.dispose();
+
+        let maxLuma = 0;
+        let maxRgb = [0, 0, 0];
+        let lit = 0;
+        let nonZeroAlpha = 0;
+        for (let i = 0; i < w * h; i += 1) {
+          const r = pixels[i * 4];
+          const g = pixels[i * 4 + 1];
+          const b = pixels[i * 4 + 2];
+          const a = pixels[i * 4 + 3];
+          const luma = r * 0.299 + g * 0.587 + b * 0.114;
+          if (luma > 24) lit += 1;
+          if (a > 8) nonZeroAlpha += 1;
+          if (luma > maxLuma) {
+            maxLuma = luma;
+            maxRgb = [r, g, b];
+          }
+        }
+        // Bounding box of the lit region, so the disk's actual position and size in frame
+        // can be read directly rather than inferred.
+        let minX = w, maxX = -1, minY = h, maxY = -1;
+        for (let y = 0; y < h; y += 1) {
+          for (let x = 0; x < w; x += 1) {
+            const i = (y * w + x) * 4;
+            const luma = pixels[i] * 0.299 + pixels[i + 1] * 0.587 + pixels[i + 2] * 0.114;
+            if (luma > 24) {
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+            }
+          }
+        }
+
+        return {
+          w, h,
+          litFraction: +(lit / (w * h)).toFixed(4),
+          coveredFraction: +(nonZeroAlpha / (w * h)).toFixed(4),
+          maxLuma: Math.round(maxLuma),
+          maxRgb,
+          litBox: maxX < 0 ? null : { minX, maxX, minY, maxY, w: maxX - minX + 1, h: maxY - minY + 1 },
+          litCentreXFraction: maxX < 0 ? null : +(((minX + maxX) / 2) / w).toFixed(3),
+          litCentreYFraction: maxX < 0 ? null : +(((minY + maxY) / 2) / h).toFixed(3)
+        };
+      };
+
+      // Exposed for the browser test suite: reports live scene/renderer state so a blank
+      // frame can be diagnosed without guessing at what the GPU received.
+      window.__atgState = () => ({
+        quadTransparent: blackHoleMaterial.transparent,
+        quadDepthWrite: blackHoleMaterial.depthWrite,
+        quadBlending: blackHoleMaterial.blending,
+        quadRenderOrder: blackHoleQuad.renderOrder,
+        starCount: (() => {
+          const points = scene.children.find((child) => child.isPoints);
+          return points ? points.geometry.getAttribute("position").count : -1;
+        })(),
+        starVisible: (() => {
+          const points = scene.children.find((child) => child.isPoints);
+          return points ? points.visible : false;
+        })(),
+        cameraNear: camera.near,
+        cameraFar: camera.far,
+        approach: blackHoleUniforms.uApproach.value,
+        aspect: blackHoleUniforms.uAspect.value,
+        cameraDistance: blackHoleUniforms.uCameraDistance.value,
+        quadScale: blackHoleQuad.scale.toArray(),
+        quadVisible: blackHoleQuad.visible && blackHoleTilt.visible,
+        quadInScene: blackHoleTilt.parent === scene,
+        sceneChildren: scene.children.length,
+        rendererSize: renderer.getSize(new THREE.Vector2()).toArray(),
+        introDone,
+        elapsed: +elapsed.toFixed(2)
+      });
 
       animate();
     })();

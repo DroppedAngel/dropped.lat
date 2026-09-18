@@ -1,0 +1,11 @@
+{
+  "name": "dropped-lat",
+  "private": true,
+  "scripts": {
+    "dev": "node server.cjs",
+    "test:browser": "node C:/Users/redst/.codegpt/skills/browser-automation/browser.mjs file:///c:/Users/redst/OneDrive/Documents/GitHub/dropped.lat/index.html --script tests/servarr.browser.mjs",
+    "test:servarr": "node C:/Users/redst/.codegpt/skills/browser-automation/browser.mjs http://127.0.0.1:8099/ --script tests/servarr.browser.mjs",
+    "test:offline": "node C:/Users/redst/.codegpt/skills/browser-automation/browser.mjs http://127.0.0.1:8099/ --script tests/offline.browser.mjs",
+    "test:intro": "node C:/Users/redst/.codegpt/skills/browser-automation/browser.mjs http://127.0.0.1:8099/ --script tests/intro.browser.mjs"
+  }
+}
